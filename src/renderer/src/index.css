@@ -1,9 +1,10 @@
 :root {
-  --bg: rgba(30, 30, 32, 0.98);
+  --bg: #1e1e20;
+  --sidebar-bg: #171719;
   --fg: #e8e8ea;
   --muted: #9a9aa0;
   --accent: #4c8bf5;
-  --row-hover: rgba(255, 255, 255, 0.08);
+  --row-hover: rgba(255, 255, 255, 0.06);
   --border: rgba(255, 255, 255, 0.08);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
@@ -22,50 +23,101 @@ body,
 body {
   background: var(--bg);
   color: var(--fg);
-  font-size: 13px;
-  user-select: none;
+  font-size: 14px;
   overflow: hidden;
 }
 
 .app {
   display: flex;
-  flex-direction: column;
   height: 100vh;
 }
 
-.tabs {
+/* ---------- Sidebar ---------- */
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
   display: flex;
-  gap: 4px;
-  padding: 8px 8px 4px;
-  -webkit-app-region: drag;
+  flex-direction: column;
+  padding: 16px 12px;
 }
 
-.tab {
-  flex: 1;
+.brand {
+  font-size: 15px;
+  font-weight: 700;
+  padding: 4px 10px 16px;
+  letter-spacing: 0.2px;
+}
+
+.nav {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   background: transparent;
   border: none;
   color: var(--muted);
-  font-size: 13px;
-  font-weight: 600;
-  padding: 6px 8px;
-  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  padding: 9px 10px;
+  border-radius: 8px;
   cursor: pointer;
-  -webkit-app-region: no-drag;
 }
 
-.tab:hover {
+.nav-item:hover {
   background: var(--row-hover);
+  color: var(--fg);
 }
 
-.tab.active {
+.nav-item.active {
   background: var(--accent);
-  color: white;
+  color: #fff;
+}
+
+.nav-icon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+}
+
+/* ---------- Main content ---------- */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.main-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.main-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
 }
 
 .search {
-  margin: 4px 8px 8px;
-  padding: 7px 10px;
-  border-radius: 6px;
+  width: 240px;
+  padding: 8px 12px;
+  border-radius: 8px;
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.06);
   color: var(--fg);
@@ -77,12 +129,14 @@ body {
   border-color: var(--accent);
 }
 
-.content {
+.main-body {
   flex: 1;
   overflow: hidden;
   display: flex;
+  padding: 8px 12px 12px;
 }
 
+/* ---------- Lists (history & snippets) ---------- */
 .list-wrap {
   display: flex;
   flex-direction: column;
@@ -93,7 +147,7 @@ body {
 .list {
   list-style: none;
   margin: 0;
-  padding: 0 6px;
+  padding: 4px 4px 8px;
   overflow-y: auto;
   flex: 1;
 }
@@ -102,9 +156,9 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 8px 10px;
-  border-radius: 6px;
+  gap: 12px;
+  padding: 11px 14px;
+  border-radius: 8px;
   cursor: pointer;
 }
 
@@ -130,9 +184,9 @@ body {
   color: var(--muted);
   cursor: pointer;
   opacity: 0;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 12px;
+  padding: 3px 7px;
+  border-radius: 5px;
+  font-size: 13px;
 }
 
 .row:hover .row-action {
@@ -147,12 +201,12 @@ body {
 .empty {
   color: var(--muted);
   text-align: center;
-  margin-top: 40px;
-  padding: 0 20px;
+  margin-top: 64px;
+  padding: 0 24px;
 }
 
 .list-footer {
-  padding: 6px 12px;
+  padding: 8px 14px;
   border-top: 1px solid var(--border);
 }
 
@@ -161,15 +215,17 @@ body {
   border: none;
   color: var(--accent);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
   padding: 2px 0;
 }
 
+/* ---------- Snippet editor ---------- */
 .editor {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 8px 12px 12px;
+  gap: 10px;
+  padding: 8px 4px;
+  width: 100%;
   height: 100%;
 }
 
@@ -177,10 +233,10 @@ body {
 .editor-content {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 8px;
   color: var(--fg);
-  font-size: 13px;
-  padding: 8px 10px;
+  font-size: 14px;
+  padding: 10px 12px;
   outline: none;
   font-family: inherit;
 }
@@ -194,6 +250,8 @@ body {
   flex: 1;
   resize: none;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .editor-actions {
@@ -204,18 +262,34 @@ body {
 .btn {
   background: rgba(255, 255, 255, 0.08);
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   color: var(--fg);
   cursor: pointer;
-  font-size: 13px;
-  padding: 7px 14px;
+  font-size: 14px;
+  padding: 9px 18px;
 }
 
 .btn.primary {
   background: var(--accent);
-  color: white;
+  color: #fff;
 }
 
 .btn:hover {
   filter: brightness(1.15);
+}
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(20, 20, 22, 0.95);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  padding: 9px 18px;
+  border-radius: 999px;
+  font-size: 13px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
 }

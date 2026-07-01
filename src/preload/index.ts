@@ -15,7 +15,6 @@ const api = {
   saveSnippets: (snippets: Snippet[]): Promise<Snippet[]> =>
     ipcRenderer.invoke('snippets:save', snippets),
   copy: (text: string): Promise<void> => ipcRenderer.invoke('clipboard:copy', text),
-  hideWindow: (): Promise<void> => ipcRenderer.invoke('window:hide'),
   onHistoryUpdate: (callback: (history: string[]) => void): (() => void) => {
     const listener = (_event: unknown, history: string[]): void => callback(history)
     ipcRenderer.on('history:update', listener)

@@ -6,8 +6,7 @@ import {
   clipboard,
   globalShortcut,
   ipcMain,
-  nativeImage,
-  screen
+  nativeImage
 } from 'electron'
 import { join } from 'node:path'
 import {
@@ -22,8 +21,6 @@ import {
 } from './store.js'
 
 const POLL_INTERVAL_MS = 800
-const WINDOW_WIDTH = 380
-const WINDOW_HEIGHT = 520
 
 let tray: Tray | null = null
 let win: BrowserWindow | null = null
@@ -33,14 +30,13 @@ let selfCopiedText: string | null = null
 
 function createWindow(): void {
   win = new BrowserWindow({
-    width: WINDOW_WIDTH,
-    height: WINDOW_HEIGHT,
+    width: 960,
+    height: 640,
+    minWidth: 680,
+    minHeight: 420,
     show: false,
-    frame: false,
-    resizable: false,
-    fullscreenable: false,
-    skipTaskbar: true,
-    alwaysOnTop: true,
+    title: 'TheDevTools',
+    backgroundColor: '#1e1e20',
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
       sandbox: false,
@@ -56,48 +52,34 @@ function createWindow(): void {
     win.loadFile(join(__dirname, '../renderer/index.html'))
   }
 
-  // Behave like a popover: hide when the user clicks away.
-  win.on('blur', () => {
-    if (win && !win.webContents.isDevToolsOpened()) {
-      win.hide()
-    }
+  win.once('ready-to-show', () => win?.show())
+  win.on('closed', () => {
+    win = null
   })
 }
 
-function positionWindowNearTray(): void {
-  if (!win || !tray) return
-  const trayBounds = tray.getBounds()
-  const { workArea } = screen.getPrimaryDisplay()
-  let x = Math.round(trayBounds.x + trayBounds.width / 2 - WINDOW_WIDTH / 2)
-  // Keep the window fully on screen horizontally.
-  x = Math.max(workArea.x + 8, Math.min(x, workArea.x + workArea.width - WINDOW_WIDTH - 8))
-  const y = Math.round(trayBounds.y + trayBounds.height + 4)
-  win.setPosition(x, y, false)
-}
-
-function toggleWindow(): void {
-  if (!win) return
-  if (win.isVisible()) {
-    win.hide()
+function showWindow(): void {
+  if (!win) {
+    createWindow()
     return
   }
-  positionWindowNearTray()
+  if (win.isMinimized()) win.restore()
   win.show()
   win.focus()
 }
 
 function createTray(): void {
   // An empty image plus a text title keeps the app asset-free while still
-  // showing a recognizable glyph in the macOS menu bar.
+  // showing a recognizable glyph in the macOS menu bar for quick access.
   tray = new Tray(nativeImage.createEmpty())
   tray.setTitle('📋')
   tray.setToolTip('TheDevTools — clipboard & snippets')
 
   const contextMenu = Menu.buildFromTemplate([
-    { label: 'Open', click: () => toggleWindow() },
+    { label: 'Open TheDevTools', click: () => showWindow() },
     { type: 'separator' },
     {
-      label: 'Clear history',
+      label: 'Clear clipboard history',
       click: () => {
         clearHistory()
         win?.webContents.send('history:update', getHistory())
@@ -107,8 +89,8 @@ function createTray(): void {
     { label: 'Quit', role: 'quit' }
   ])
 
-  // Left click toggles the popover; right click shows the menu.
-  tray.on('click', () => toggleWindow())
+  // Left click opens/focuses the main window; right click shows the menu.
+  tray.on('click', () => showWindow())
   tray.on('right-click', () => tray?.popUpContextMenu(contextMenu))
 }
 
@@ -152,16 +134,10 @@ function registerIpc(): void {
   ipcMain.handle('clipboard:copy', (_event, text: string) => {
     copyToClipboard(text)
   })
-  ipcMain.handle('window:hide', () => win?.hide())
 }
 
 app.whenReady().then(() => {
   load()
-
-  // Menu-bar-only app: no dock icon on macOS.
-  if (process.platform === 'darwin') {
-    app.dock?.hide()
-  }
 
   createWindow()
   createTray()
@@ -169,14 +145,27 @@ app.whenReady().then(() => {
   startClipboardWatcher()
 
   const shortcut = 'CommandOrControl+Shift+V'
-  const registered = globalShortcut.register(shortcut, () => toggleWindow())
+  const registered = globalShortcut.register(shortcut, () => showWindow())
   if (!registered) {
     console.warn(`Failed to register global shortcut ${shortcut}`)
   }
+
+  // macOS: re-open the window when the dock icon is clicked and none are open.
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow()
+    } else {
+      showWindow()
+    }
+  })
 })
 
 app.on('window-all-closed', () => {
-  // Stay alive in the menu bar even when the popover is closed.
+  // On macOS keep running so the tray and clipboard watcher stay alive;
+  // elsewhere a closed window means quit.
+  if (process.platform !== 'darwin') {
+    app.quit()
+  }
 })
 
 app.on('will-quit', () => {

@@ -3,13 +3,19 @@ import HistoryTab from './components/HistoryTab'
 import SnippetsTab from './components/SnippetsTab'
 import type { Snippet } from './types'
 
-type Tab = 'history' | 'snippets'
+type View = 'history' | 'snippets'
+
+const NAV: { id: View; label: string; icon: string }[] = [
+  { id: 'history', label: 'Clipboard History', icon: '📋' },
+  { id: 'snippets', label: 'Snippets', icon: '✂️' }
+]
 
 export default function App(): JSX.Element {
-  const [tab, setTab] = useState<Tab>('history')
+  const [view, setView] = useState<View>('history')
   const [history, setHistory] = useState<string[]>([])
   const [snippets, setSnippets] = useState<Snippet[]>([])
   const [query, setQuery] = useState('')
+  const [toast, setToast] = useState<string | null>(null)
 
   useEffect(() => {
     window.api.getHistory().then(setHistory)
@@ -18,14 +24,17 @@ export default function App(): JSX.Element {
     return unsubscribe
   }, [])
 
-  // Hide the popover on Escape, matching native menu-bar utilities.
+  // Reset the search box when switching sections.
   useEffect(() => {
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') window.api.hideWindow()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
+    setQuery('')
+  }, [view])
+
+  // Auto-dismiss the "Copied" toast.
+  useEffect(() => {
+    if (!toast) return
+    const timer = setTimeout(() => setToast(null), 1500)
+    return () => clearTimeout(timer)
+  }, [toast])
 
   const filteredHistory = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -43,7 +52,7 @@ export default function App(): JSX.Element {
 
   async function handleCopy(text: string): Promise<void> {
     await window.api.copy(text)
-    window.api.hideWindow()
+    setToast('Copied to clipboard')
   }
 
   async function handleClearHistory(): Promise<void> {
@@ -61,49 +70,59 @@ export default function App(): JSX.Element {
     await window.api.saveSnippets(next)
   }
 
+  const activeNav = NAV.find((n) => n.id === view)!
+
   return (
     <div className="app">
-      <header className="tabs">
-        <button
-          className={tab === 'history' ? 'tab active' : 'tab'}
-          onClick={() => setTab('history')}
-        >
-          History
-        </button>
-        <button
-          className={tab === 'snippets' ? 'tab active' : 'tab'}
-          onClick={() => setTab('snippets')}
-        >
-          Snippets
-        </button>
-      </header>
+      <nav className="sidebar">
+        <div className="brand">TheDevTools</div>
+        <ul className="nav">
+          {NAV.map((item) => (
+            <li key={item.id}>
+              <button
+                className={item.id === view ? 'nav-item active' : 'nav-item'}
+                onClick={() => setView(item.id)}
+              >
+                <span className="nav-icon">{item.icon}</span>
+                <span className="nav-label">{item.label}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </nav>
 
-      <input
-        className="search"
-        type="text"
-        placeholder="Search…"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        autoFocus
-      />
+      <section className="main">
+        <header className="main-header">
+          <h1 className="main-title">{activeNav.label}</h1>
+          <input
+            className="search"
+            type="text"
+            placeholder={`Search ${activeNav.label.toLowerCase()}…`}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </header>
 
-      <main className="content">
-        {tab === 'history' ? (
-          <HistoryTab
-            items={filteredHistory}
-            onCopy={handleCopy}
-            onRemove={handleRemoveHistory}
-            onClear={handleClearHistory}
-          />
-        ) : (
-          <SnippetsTab
-            snippets={filteredSnippets}
-            allSnippets={snippets}
-            onCopy={handleCopy}
-            onSave={handleSaveSnippets}
-          />
-        )}
-      </main>
+        <div className="main-body">
+          {view === 'history' ? (
+            <HistoryTab
+              items={filteredHistory}
+              onCopy={handleCopy}
+              onRemove={handleRemoveHistory}
+              onClear={handleClearHistory}
+            />
+          ) : (
+            <SnippetsTab
+              snippets={filteredSnippets}
+              allSnippets={snippets}
+              onCopy={handleCopy}
+              onSave={handleSaveSnippets}
+            />
+          )}
+        </div>
+      </section>
+
+      {toast && <div className="toast">{toast}</div>}
     </div>
   )
 }
