@@ -1,0 +1,28 @@
+# Toolchain for TheDevTools, managed by mise (https://mise.jdx.dev).
+#
+#   mise install     # install the pinned tools below
+#   mise run dev     # or: bun run dev
+#
+[tools]
+# Primary runtime / package manager.
+bun = "latest"
+
+# Kept as a safety net: some Electron tooling — most notably
+# electron-builder during `.dmg` packaging — shells out to `node`.
+# Dev (`bun run dev`) generally works without it. Remove this line if you
+# want a pure-bun setup and packaging still succeeds for you.
+node = "22"
+
+# Convenience wrappers so `mise run <task>` works without remembering the
+# underlying package manager. These just call the package.json scripts.
+[tasks.dev]
+description = "Run the app in development with hot reload"
+run = "bun run dev"
+
+[tasks.build]
+description = "Type-check and bundle main, preload and renderer"
+run = "bun run build"
+
+[tasks."dist:mac"]
+description = "Build a distributable .dmg (macOS only)"
+run = "bun run dist:mac"
