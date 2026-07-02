@@ -174,11 +174,8 @@ function copyToClipboard(text: string): void {
   clipboard.writeText(text)
 }
 
-// Put the text on the clipboard, hide the panel so focus returns to the app
-// the user was in, then simulate Cmd+V to insert it there.
-function pasteIntoPreviousApp(text: string): void {
-  copyToClipboard(text)
-  launcher?.hide()
+// Simulate Cmd+V in whatever app now has focus (needs Accessibility permission).
+function simulatePaste(): void {
   if (process.platform !== 'darwin') return
   setTimeout(() => {
     exec(
@@ -193,6 +190,23 @@ function pasteIntoPreviousApp(text: string): void {
       }
     )
   }, 120)
+}
+
+// From the launcher: copy, hide the floating panel so focus returns to the
+// previous app, then paste.
+function pasteFromLauncher(text: string): void {
+  copyToClipboard(text)
+  launcher?.hide()
+  simulatePaste()
+}
+
+// From the main window: copy, hide the whole app so focus returns to the app
+// the user was in before opening our window, then paste.
+function pasteFromMain(text: string): void {
+  copyToClipboard(text)
+  if (process.platform === 'darwin') app.hide()
+  else mainWin?.hide()
+  simulatePaste()
 }
 
 /* ---------------- Tray ---------------- */
@@ -246,7 +260,8 @@ function registerIpc(): void {
     return getEvents()
   })
   ipcMain.handle('clipboard:copy', (_event, text: string) => copyToClipboard(text))
-  ipcMain.handle('paste', (_event, text: string) => pasteIntoPreviousApp(text))
+  ipcMain.handle('paste', (_event, text: string) => pasteFromLauncher(text))
+  ipcMain.handle('paste-from-main', (_event, text: string) => pasteFromMain(text))
   ipcMain.handle('window:hide', () => launcher?.hide())
   ipcMain.handle('window:open-main', () => openMainWindow())
 }

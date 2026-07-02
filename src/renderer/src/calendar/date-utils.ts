@@ -1,5 +1,8 @@
 export const HOUR_HEIGHT = 48 // px per hour in the day view
 export const SNAP_MINUTES = 15
+// Visible range of the day view (hours, 24h clock).
+export const DAY_START_HOUR = 7
+export const DAY_END_HOUR = 21
 export const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = [
   'January',

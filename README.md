@@ -21,7 +21,8 @@ The app has two surfaces:
 - 🔍 **Unified search** across clipboard history and snippets in one list.
 
 ### Calendar
-- 📅 **Month & Day views** with prev/next/today navigation.
+- 📅 **Month & Day views** with prev/next/today navigation. The day view shows
+  07:00–21:00 with a live current-time indicator.
 - 🗓️ **Events** — create (click a day or an hour), edit title/date/time,
   delete. Click a day number to jump into its day view.
 - 🖱️ **Drag to reschedule** — in the day view, drag an event to move it

@@ -13,13 +13,6 @@ const NAV: { id: View; label: string; icon: string }[] = [
 
 export default function MainApp(): JSX.Element {
   const [view, setView] = useState<View>('calendar')
-  const [toast, setToast] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!toast) return
-    const t = setTimeout(() => setToast(null), 1500)
-    return () => clearTimeout(t)
-  }, [toast])
 
   return (
     <div className="mainapp">
@@ -42,11 +35,9 @@ export default function MainApp(): JSX.Element {
 
       <section className="content">
         {view === 'calendar' && <CalendarView />}
-        {view === 'history' && <HistoryPanel onToast={setToast} />}
-        {view === 'snippets' && <SnippetsPanel onToast={setToast} />}
+        {view === 'history' && <HistoryPanel />}
+        {view === 'snippets' && <SnippetsPanel />}
       </section>
-
-      {toast && <div className="toast">{toast}</div>}
     </div>
   )
 }
@@ -58,7 +49,7 @@ function preview(text: string): string {
   return oneLine.length > 140 ? `${oneLine.slice(0, 140)}…` : oneLine
 }
 
-function HistoryPanel({ onToast }: { onToast: (m: string) => void }): JSX.Element {
+function HistoryPanel(): JSX.Element {
   const [history, setHistory] = useState<string[]>([])
 
   useEffect(() => {
@@ -66,9 +57,9 @@ function HistoryPanel({ onToast }: { onToast: (m: string) => void }): JSX.Elemen
     return window.api.onHistoryUpdate(setHistory)
   }, [])
 
-  async function copy(text: string): Promise<void> {
-    await window.api.copy(text)
-    onToast('Copied to clipboard')
+  // Insert into the app that was focused before our window opened.
+  async function insert(text: string): Promise<void> {
+    await window.api.pasteFromMain(text)
   }
 
   async function remove(text: string): Promise<void> {
@@ -97,7 +88,8 @@ function HistoryPanel({ onToast }: { onToast: (m: string) => void }): JSX.Elemen
             <li
               key={`${i}-${item.slice(0, 16)}`}
               className="row"
-              onClick={() => copy(item)}
+              title="Click to paste into the previous app"
+              onClick={() => insert(item)}
             >
               <span className="row-text">{preview(item)}</span>
               <button
@@ -120,7 +112,7 @@ function HistoryPanel({ onToast }: { onToast: (m: string) => void }): JSX.Elemen
 
 /* ---------------- Snippets panel ---------------- */
 
-function SnippetsPanel({ onToast }: { onToast: (m: string) => void }): JSX.Element {
+function SnippetsPanel(): JSX.Element {
   const [snippets, setSnippets] = useState<Snippet[]>([])
   const [editing, setEditing] = useState<Snippet | 'new' | null>(null)
 
@@ -145,9 +137,8 @@ function SnippetsPanel({ onToast }: { onToast: (m: string) => void }): JSX.Eleme
     await window.api.saveSnippets(next)
   }
 
-  async function copy(text: string): Promise<void> {
-    await window.api.copy(text)
-    onToast('Copied to clipboard')
+  async function insert(text: string): Promise<void> {
+    await window.api.pasteFromMain(text)
   }
 
   if (editing) {
@@ -175,7 +166,12 @@ function SnippetsPanel({ onToast }: { onToast: (m: string) => void }): JSX.Eleme
       ) : (
         <ul className="list">
           {snippets.map((s) => (
-            <li key={s.id} className="row" onClick={() => copy(s.content)}>
+            <li
+              key={s.id}
+              className="row"
+              title="Click to paste into the previous app"
+              onClick={() => insert(s.content)}
+            >
               <span className="row-text">
                 <strong>{s.title}</strong>
               </span>

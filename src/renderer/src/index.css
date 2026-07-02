@@ -607,9 +607,11 @@ body {
   margin-left: 56px;
 }
 
-.hour-row {
-  position: relative;
-  border-bottom: 1px solid var(--border);
+.hour-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--border);
 }
 
 .hour-label {
@@ -620,6 +622,37 @@ body {
   text-align: right;
   font-size: 11px;
   color: var(--muted);
+}
+
+.now-line {
+  position: absolute;
+  left: 0;
+  right: 12px;
+  height: 0;
+  border-top: 2px solid #ff5a5f;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.now-dot {
+  position: absolute;
+  left: -4px;
+  top: -5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff5a5f;
+}
+
+.now-label {
+  position: absolute;
+  left: -52px;
+  top: -8px;
+  width: 46px;
+  text-align: right;
+  font-size: 10px;
+  font-weight: 700;
+  color: #ff5a5f;
 }
 
 .event {
