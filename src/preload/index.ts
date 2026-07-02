@@ -28,9 +28,6 @@ const api = {
   copy: (text: string): Promise<void> => ipcRenderer.invoke('clipboard:copy', text),
   // Insert text into the app that was focused before the launcher opened.
   paste: (text: string): Promise<void> => ipcRenderer.invoke('paste', text),
-  // Same, initiated from the main window (hides the app to restore focus).
-  pasteFromMain: (text: string): Promise<void> =>
-    ipcRenderer.invoke('paste-from-main', text),
   hide: (): Promise<void> => ipcRenderer.invoke('window:hide'),
   openMain: (): Promise<void> => ipcRenderer.invoke('window:open-main'),
   onHistoryUpdate: (callback: (history: string[]) => void): (() => void) => {

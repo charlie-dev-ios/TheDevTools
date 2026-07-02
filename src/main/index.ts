@@ -193,19 +193,10 @@ function simulatePaste(): void {
 }
 
 // From the launcher: copy, hide the floating panel so focus returns to the
-// previous app, then paste.
+// previous app, then paste. (The main window only copies — it never inserts.)
 function pasteFromLauncher(text: string): void {
   copyToClipboard(text)
   launcher?.hide()
-  simulatePaste()
-}
-
-// From the main window: copy, hide the whole app so focus returns to the app
-// the user was in before opening our window, then paste.
-function pasteFromMain(text: string): void {
-  copyToClipboard(text)
-  if (process.platform === 'darwin') app.hide()
-  else mainWin?.hide()
   simulatePaste()
 }
 
@@ -261,7 +252,6 @@ function registerIpc(): void {
   })
   ipcMain.handle('clipboard:copy', (_event, text: string) => copyToClipboard(text))
   ipcMain.handle('paste', (_event, text: string) => pasteFromLauncher(text))
-  ipcMain.handle('paste-from-main', (_event, text: string) => pasteFromMain(text))
   ipcMain.handle('window:hide', () => launcher?.hide())
   ipcMain.handle('window:open-main', () => openMainWindow())
 }
