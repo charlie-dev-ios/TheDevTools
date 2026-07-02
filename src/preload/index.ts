@@ -6,6 +6,13 @@ export interface Snippet {
   content: string
 }
 
+export interface CalendarEvent {
+  id: string
+  title: string
+  start: string
+  end: string
+}
+
 const api = {
   getHistory: (): Promise<string[]> => ipcRenderer.invoke('history:get'),
   clearHistory: (): Promise<string[]> => ipcRenderer.invoke('history:clear'),
@@ -14,9 +21,15 @@ const api = {
   getSnippets: (): Promise<Snippet[]> => ipcRenderer.invoke('snippets:get'),
   saveSnippets: (snippets: Snippet[]): Promise<Snippet[]> =>
     ipcRenderer.invoke('snippets:save', snippets),
-  // Insert text into the app that was focused before the panel opened.
+  getEvents: (): Promise<CalendarEvent[]> => ipcRenderer.invoke('events:get'),
+  saveEvents: (events: CalendarEvent[]): Promise<CalendarEvent[]> =>
+    ipcRenderer.invoke('events:save', events),
+  // Copy without moving focus (used by the main window).
+  copy: (text: string): Promise<void> => ipcRenderer.invoke('clipboard:copy', text),
+  // Insert text into the app that was focused before the launcher opened.
   paste: (text: string): Promise<void> => ipcRenderer.invoke('paste', text),
   hide: (): Promise<void> => ipcRenderer.invoke('window:hide'),
+  openMain: (): Promise<void> => ipcRenderer.invoke('window:open-main'),
   onHistoryUpdate: (callback: (history: string[]) => void): (() => void) => {
     const listener = (_event: unknown, history: string[]): void => callback(history)
     ipcRenderer.on('history:update', listener)

@@ -15,7 +15,7 @@ function preview(text: string): string {
   return oneLine.length > 100 ? `${oneLine.slice(0, 100)}…` : oneLine
 }
 
-export default function App(): JSX.Element {
+export default function Launcher(): JSX.Element {
   const [history, setHistory] = useState<string[]>([])
   const [snippets, setSnippets] = useState<Snippet[]>([])
   const [query, setQuery] = useState('')

@@ -8,16 +8,26 @@ export interface Snippet {
   content: string
 }
 
+export interface CalendarEvent {
+  id: string
+  title: string
+  /** ISO datetime string. */
+  start: string
+  /** ISO datetime string. */
+  end: string
+}
+
 interface Data {
   history: string[]
   snippets: Snippet[]
+  events: CalendarEvent[]
 }
 
 const MAX_HISTORY = 200
 
 const filePath = join(app.getPath('userData'), 'thedevtools-data.json')
 
-let data: Data = { history: [], snippets: [] }
+let data: Data = { history: [], snippets: [], events: [] }
 
 export function load(): void {
   try {
@@ -25,12 +35,13 @@ export function load(): void {
       const parsed = JSON.parse(readFileSync(filePath, 'utf-8')) as Partial<Data>
       data = {
         history: Array.isArray(parsed.history) ? parsed.history : [],
-        snippets: Array.isArray(parsed.snippets) ? parsed.snippets : []
+        snippets: Array.isArray(parsed.snippets) ? parsed.snippets : [],
+        events: Array.isArray(parsed.events) ? parsed.events : []
       }
     }
   } catch (err) {
     console.error('Failed to load data, starting fresh:', err)
-    data = { history: [], snippets: [] }
+    data = { history: [], snippets: [], events: [] }
   }
 }
 
@@ -82,5 +93,14 @@ export function getSnippets(): Snippet[] {
 
 export function saveSnippets(snippets: Snippet[]): void {
   data.snippets = snippets
+  persist()
+}
+
+export function getEvents(): CalendarEvent[] {
+  return data.events
+}
+
+export function saveEvents(events: CalendarEvent[]): void {
+  data.events = events
   persist()
 }
