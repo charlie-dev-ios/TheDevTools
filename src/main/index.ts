@@ -19,23 +19,35 @@ import {
   clearHistory,
   getSnippets,
   saveSnippets,
-  type Snippet
+  getEvents,
+  saveEvents,
+  type Snippet,
+  type CalendarEvent
 } from './store.js'
 
 const POLL_INTERVAL_MS = 800
-const WINDOW_WIDTH = 640
-const WINDOW_HEIGHT = 440
+const LAUNCHER_WIDTH = 640
+const LAUNCHER_HEIGHT = 440
+const RENDERER_HTML = join(__dirname, '../renderer/index.html')
 
 let tray: Tray | null = null
-let win: BrowserWindow | null = null
+let launcher: BrowserWindow | null = null
+let mainWin: BrowserWindow | null = null
 let lastClipboardText = ''
 // Set while we write to the clipboard ourselves so polling doesn't re-record it.
 let selfCopiedText: string | null = null
 
-function createWindow(): void {
-  win = new BrowserWindow({
-    width: WINDOW_WIDTH,
-    height: WINDOW_HEIGHT,
+function rendererUrl(hash: string): string | null {
+  const devUrl = process.env['ELECTRON_RENDERER_URL']
+  return devUrl ? `${devUrl}#${hash}` : null
+}
+
+/* ---------------- Quick launcher (floating panel) ---------------- */
+
+function createLauncher(): void {
+  launcher = new BrowserWindow({
+    width: LAUNCHER_WIDTH,
+    height: LAUNCHER_HEIGHT,
     show: false,
     frame: false,
     resizable: false,
@@ -54,76 +66,90 @@ function createWindow(): void {
     }
   })
 
-  // Float above other apps, including full-screen spaces (Raycast-style).
-  win.setAlwaysOnTop(true, 'floating')
-  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  launcher.setAlwaysOnTop(true, 'floating')
+  launcher.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
 
-  // In dev, electron-vite serves the renderer; in prod we load the built file.
-  const devUrl = process.env['ELECTRON_RENDERER_URL']
-  if (devUrl) {
-    win.loadURL(devUrl)
-  } else {
-    win.loadFile(join(__dirname, '../renderer/index.html'))
-  }
+  const url = rendererUrl('launcher')
+  if (url) launcher.loadURL(url)
+  else launcher.loadFile(RENDERER_HTML, { hash: 'launcher' })
 
-  // Dismiss when the user clicks away, like a launcher panel.
-  win.on('blur', () => {
-    if (win && !win.webContents.isDevToolsOpened()) win.hide()
+  launcher.on('blur', () => {
+    if (launcher && !launcher.webContents.isDevToolsOpened()) launcher.hide()
   })
 }
 
-function positionWindow(): void {
-  if (!win) return
-  // Center horizontally on whichever display holds the cursor, upper third.
+function positionLauncher(): void {
+  if (!launcher) return
   const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
   const { workArea } = display
-  const [w, h] = win.getSize()
+  const [w, h] = launcher.getSize()
   const x = Math.round(workArea.x + (workArea.width - w) / 2)
   const y = Math.round(workArea.y + workArea.height * 0.2)
-  win.setPosition(x, Math.min(y, workArea.y + workArea.height - h - 20), false)
+  launcher.setPosition(x, Math.min(y, workArea.y + workArea.height - h - 20), false)
 }
 
-function showWindow(): void {
-  if (!win) createWindow()
-  if (!win) return
-  positionWindow()
-  win.show()
-  win.focus()
-  // Tell the renderer to reset the query, selection and focus the search box.
-  win.webContents.send('window:shown')
+function showLauncher(): void {
+  if (!launcher) createLauncher()
+  if (!launcher) return
+  positionLauncher()
+  launcher.show()
+  launcher.focus()
+  launcher.webContents.send('window:shown')
 }
 
-function toggleWindow(): void {
-  if (win?.isVisible()) {
-    win.hide()
-  } else {
-    showWindow()
+function toggleLauncher(): void {
+  if (launcher?.isVisible()) launcher.hide()
+  else showLauncher()
+}
+
+/* ---------------- Main window (calendar & tools) ---------------- */
+
+function createMainWindow(): void {
+  mainWin = new BrowserWindow({
+    width: 1040,
+    height: 720,
+    minWidth: 820,
+    minHeight: 560,
+    show: false,
+    title: 'TheDevTools',
+    backgroundColor: '#1e1e20',
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.mjs'),
+      sandbox: false,
+      contextIsolation: true
+    }
+  })
+
+  const url = rendererUrl('main')
+  if (url) mainWin.loadURL(url)
+  else mainWin.loadFile(RENDERER_HTML, { hash: 'main' })
+
+  mainWin.once('ready-to-show', () => mainWin?.show())
+  mainWin.on('closed', () => {
+    mainWin = null
+    // Back to menu-bar-only once the app window is gone.
+    if (process.platform === 'darwin') app.dock?.hide()
+  })
+}
+
+function openMainWindow(): void {
+  // Give the app a dock icon while a real window is open.
+  if (process.platform === 'darwin') app.dock?.show()
+  if (!mainWin) {
+    createMainWindow()
+    return
   }
+  if (mainWin.isMinimized()) mainWin.restore()
+  mainWin.show()
+  mainWin.focus()
 }
 
-function createTray(): void {
-  // An empty image plus a text title keeps the app asset-free while still
-  // showing a recognizable glyph in the macOS menu bar.
-  tray = new Tray(nativeImage.createEmpty())
-  tray.setTitle('📋')
-  tray.setToolTip('TheDevTools — ⌘⇧V to open')
+/* ---------------- Clipboard ---------------- */
 
-  const contextMenu = Menu.buildFromTemplate([
-    { label: 'Open (⌘⇧V)', click: () => showWindow() },
-    { type: 'separator' },
-    {
-      label: 'Clear clipboard history',
-      click: () => {
-        clearHistory()
-        win?.webContents.send('history:update', getHistory())
-      }
-    },
-    { type: 'separator' },
-    { label: 'Quit', role: 'quit' }
-  ])
-
-  tray.on('click', () => showWindow())
-  tray.on('right-click', () => tray?.popUpContextMenu(contextMenu))
+function broadcast(channel: string, payload: unknown): void {
+  for (const w of [launcher, mainWin]) {
+    if (w && !w.isDestroyed()) w.webContents.send(channel, payload)
+  }
 }
 
 function startClipboardWatcher(): void {
@@ -137,7 +163,7 @@ function startClipboardWatcher(): void {
       return
     }
     if (addHistory(text)) {
-      win?.webContents.send('history:update', getHistory())
+      broadcast('history:update', getHistory())
     }
   }, POLL_INTERVAL_MS)
 }
@@ -148,11 +174,8 @@ function copyToClipboard(text: string): void {
   clipboard.writeText(text)
 }
 
-// Put the text on the clipboard, hide the panel so focus returns to the app
-// the user was in, then simulate Cmd+V to insert it there.
-function pasteIntoPreviousApp(text: string): void {
-  copyToClipboard(text)
-  win?.hide()
+// Simulate Cmd+V in whatever app now has focus (needs Accessibility permission).
+function simulatePaste(): void {
   if (process.platform !== 'darwin') return
   setTimeout(() => {
     exec(
@@ -169,14 +192,52 @@ function pasteIntoPreviousApp(text: string): void {
   }, 120)
 }
 
+// From the launcher: copy, hide the floating panel so focus returns to the
+// previous app, then paste. (The main window only copies — it never inserts.)
+function pasteFromLauncher(text: string): void {
+  copyToClipboard(text)
+  launcher?.hide()
+  simulatePaste()
+}
+
+/* ---------------- Tray ---------------- */
+
+function createTray(): void {
+  tray = new Tray(nativeImage.createEmpty())
+  tray.setTitle('📋')
+  tray.setToolTip('TheDevTools — ⌘⇧V for the launcher')
+
+  const contextMenu = Menu.buildFromTemplate([
+    { label: 'Open TheDevTools', click: () => openMainWindow() },
+    { label: 'Quick Launcher (⌘⇧V)', click: () => showLauncher() },
+    { type: 'separator' },
+    {
+      label: 'Clear clipboard history',
+      click: () => {
+        clearHistory()
+        broadcast('history:update', getHistory())
+      }
+    },
+    { type: 'separator' },
+    { label: 'Quit', role: 'quit' }
+  ])
+
+  tray.on('click', () => openMainWindow())
+  tray.on('right-click', () => tray?.popUpContextMenu(contextMenu))
+}
+
+/* ---------------- IPC ---------------- */
+
 function registerIpc(): void {
   ipcMain.handle('history:get', () => getHistory())
   ipcMain.handle('history:clear', () => {
     clearHistory()
+    broadcast('history:update', getHistory())
     return getHistory()
   })
   ipcMain.handle('history:remove', (_event, text: string) => {
     removeHistory(text)
+    broadcast('history:update', getHistory())
     return getHistory()
   })
   ipcMain.handle('snippets:get', () => getSnippets())
@@ -184,28 +245,37 @@ function registerIpc(): void {
     saveSnippets(snippets)
     return getSnippets()
   })
-  ipcMain.handle('paste', (_event, text: string) => pasteIntoPreviousApp(text))
-  ipcMain.handle('window:hide', () => win?.hide())
+  ipcMain.handle('events:get', () => getEvents())
+  ipcMain.handle('events:save', (_event, events: CalendarEvent[]) => {
+    saveEvents(events)
+    return getEvents()
+  })
+  ipcMain.handle('clipboard:copy', (_event, text: string) => copyToClipboard(text))
+  ipcMain.handle('paste', (_event, text: string) => pasteFromLauncher(text))
+  ipcMain.handle('window:hide', () => launcher?.hide())
+  ipcMain.handle('window:open-main', () => openMainWindow())
 }
+
+/* ---------------- App lifecycle ---------------- */
 
 app.whenReady().then(() => {
   load()
 
-  // Launcher-style app: live in the menu bar, no dock icon.
   if (process.platform === 'darwin') {
     app.dock?.hide()
   }
 
-  createWindow()
+  createLauncher()
   createTray()
   registerIpc()
   startClipboardWatcher()
 
   const shortcut = 'CommandOrControl+Shift+V'
-  const registered = globalShortcut.register(shortcut, () => toggleWindow())
-  if (!registered) {
+  if (!globalShortcut.register(shortcut, () => toggleLauncher())) {
     console.warn(`Failed to register global shortcut ${shortcut}`)
   }
+
+  app.on('activate', () => openMainWindow())
 })
 
 app.on('window-all-closed', () => {
