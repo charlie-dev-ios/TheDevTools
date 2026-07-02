@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import type { CalendarEvent } from '../types'
+import TimeStepper from './TimeStepper'
 import {
   fromDateTimeInputs,
   hmOfMinutes,
   minutesOfHM,
-  timeOptions,
   toDateInput,
   toTimeInput
 } from './date-utils'
@@ -17,8 +17,7 @@ interface Props {
   onClose: () => void
 }
 
-const TIME_OPTIONS = timeOptions()
-const DAY_MAX = 24 * 60 - 15
+const DAY_MAX = 24 * 60 - 5
 
 export default function EventModal({
   event,
@@ -38,13 +37,10 @@ export default function EventModal({
 
   // Changing the start keeps the current duration and shifts the end with it.
   function changeStart(value: string): void {
-    const duration = Math.max(15, minutesOfHM(endTime) - minutesOfHM(startTime))
+    const duration = Math.max(5, minutesOfHM(endTime) - minutesOfHM(startTime))
     setStartTime(value)
-    setEndTime(hmOfMinutes(Math.min(minutesOfHM(value) + duration, DAY_MAX + 15)))
+    setEndTime(hmOfMinutes(Math.min(minutesOfHM(value) + duration, DAY_MAX)))
   }
-
-  // Only offer end times after the start.
-  const endOptions = TIME_OPTIONS.filter((o) => minutesOfHM(o) > minutesOfHM(startTime))
 
   function save(): void {
     const s = fromDateTimeInputs(date, startTime)
@@ -90,27 +86,18 @@ export default function EventModal({
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </label>
 
-        <div className="field-row">
-          <label className="field">
-            <span>Start</span>
-            <select value={startTime} onChange={(e) => changeStart(e.target.value)}>
-              {TIME_OPTIONS.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>End</span>
-            <select value={endTime} onChange={(e) => setEndTime(e.target.value)}>
-              {endOptions.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="field">
+          <span>Start</span>
+          <TimeStepper value={startTime} max={DAY_MAX} onChange={changeStart} />
+        </div>
+        <div className="field">
+          <span>End</span>
+          <TimeStepper
+            value={endTime}
+            min={minutesOfHM(startTime) + 5}
+            max={DAY_MAX}
+            onChange={setEndTime}
+          />
         </div>
 
         <div className="modal-actions">

@@ -103,15 +103,6 @@ export function snap(minutes: number, max = 24 * 60): number {
   return Math.max(0, Math.min(snapped, max))
 }
 
-/** 'HH:mm' every SNAP_MINUTES across a full day, for time dropdowns. */
-export function timeOptions(): string[] {
-  const out: string[] = []
-  for (let m = 0; m < 24 * 60; m += SNAP_MINUTES) {
-    out.push(`${pad(Math.floor(m / 60))}:${pad(m % 60)}`)
-  }
-  return out
-}
-
 export function minutesOfHM(hm: string): number {
   const [h, m] = hm.split(':').map(Number)
   return h * 60 + m

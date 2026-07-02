@@ -779,6 +779,39 @@ body {
   border-color: var(--accent);
 }
 
+.time-stepper {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.step-btn {
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  border-radius: 6px;
+  padding: 9px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  min-width: 36px;
+}
+
+.step-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.time-stepper .time-value {
+  flex: 1;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5px;
+  padding: 8px 4px;
+}
+
 .modal-actions {
   display: flex;
   gap: 8px;
