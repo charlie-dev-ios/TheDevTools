@@ -10,7 +10,6 @@ import {
 interface Props {
   cursor: Date
   events: CalendarEvent[]
-  onCreateOn: (day: Date) => void
   onOpenDay: (day: Date) => void
   onSelect: (event: CalendarEvent) => void
 }
@@ -20,7 +19,6 @@ const MAX_PER_CELL = 3
 export default function MonthView({
   cursor,
   events,
-  onCreateOn,
   onOpenDay,
   onSelect
 }: Props): JSX.Element {
@@ -50,18 +48,12 @@ export default function MonthView({
             <div
               key={day.toISOString()}
               className={`month-cell${muted ? ' muted' : ''}`}
-              onClick={() => onCreateOn(day)}
+              onClick={() => onOpenDay(day)}
+              title="Open day view"
             >
-              <button
-                className={`day-number${isSameDay(day, today) ? ' today' : ''}`}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onOpenDay(day)
-                }}
-                title="Open day view"
-              >
+              <span className={`day-number${isSameDay(day, today) ? ' today' : ''}`}>
                 {day.getDate()}
-              </button>
+              </span>
               <div className="cell-events">
                 {dayEvents.slice(0, MAX_PER_CELL).map((event) => (
                   <button

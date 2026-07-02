@@ -53,13 +53,6 @@ export default function CalendarView(): JSX.Element {
     })
   }
 
-  function createOnDay(day: Date): void {
-    // Default a month-cell click to a 9:00 event.
-    const start = new Date(day)
-    start.setHours(9, 0, 0, 0)
-    newEventAt(start)
-  }
-
   function step(direction: number): void {
     setCursor((c) => (mode === 'month' ? addMonths(c, direction) : addDays(c, direction)))
   }
@@ -112,7 +105,6 @@ export default function CalendarView(): JSX.Element {
           <MonthView
             cursor={cursor}
             events={events}
-            onCreateOn={createOnDay}
             onOpenDay={(day) => {
               setCursor(day)
               setMode('day')
