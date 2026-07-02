@@ -190,6 +190,7 @@ export default function DayView({
               <div className="event-time">
                 {fmtMin(startMin)}–{fmtMin(endMin)}
               </div>
+              {event.description && <div className="event-desc">{event.description}</div>}
               <div
                 className="event-resize"
                 onPointerDown={(e) => beginDrag(e, event, 'resize')}

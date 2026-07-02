@@ -1,6 +1,13 @@
 import { useState } from 'react'
 import type { CalendarEvent } from '../types'
-import { fromDateTimeInputs, toDateInput, toTimeInput } from './date-utils'
+import {
+  fromDateTimeInputs,
+  hmOfMinutes,
+  minutesOfHM,
+  timeOptions,
+  toDateInput,
+  toTimeInput
+} from './date-utils'
 
 interface Props {
   event: CalendarEvent
@@ -9,6 +16,9 @@ interface Props {
   onDelete: (id: string) => void
   onClose: () => void
 }
+
+const TIME_OPTIONS = timeOptions()
+const DAY_MAX = 24 * 60 - 15
 
 export default function EventModal({
   event,
@@ -21,18 +31,29 @@ export default function EventModal({
   const end = new Date(event.end)
 
   const [title, setTitle] = useState(event.title)
+  const [description, setDescription] = useState(event.description ?? '')
   const [date, setDate] = useState(toDateInput(start))
   const [startTime, setStartTime] = useState(toTimeInput(start))
   const [endTime, setEndTime] = useState(toTimeInput(end))
 
+  // Changing the start keeps the current duration and shifts the end with it.
+  function changeStart(value: string): void {
+    const duration = Math.max(15, minutesOfHM(endTime) - minutesOfHM(startTime))
+    setStartTime(value)
+    setEndTime(hmOfMinutes(Math.min(minutesOfHM(value) + duration, DAY_MAX + 15)))
+  }
+
+  // Only offer end times after the start.
+  const endOptions = TIME_OPTIONS.filter((o) => minutesOfHM(o) > minutesOfHM(startTime))
+
   function save(): void {
     const s = fromDateTimeInputs(date, startTime)
     let e = fromDateTimeInputs(date, endTime)
-    // Guarantee the event ends after it starts.
     if (e <= s) e = new Date(s.getTime() + 30 * 60_000)
     onSave({
       ...event,
       title: title.trim() || 'Untitled',
+      description: description.trim(),
       start: s.toISOString(),
       end: e.toISOString()
     })
@@ -55,6 +76,16 @@ export default function EventModal({
         </label>
 
         <label className="field">
+          <span>Notes</span>
+          <textarea
+            rows={3}
+            value={description}
+            placeholder="What are you doing? (optional)"
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </label>
+
+        <label className="field">
           <span>Date</span>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
         </label>
@@ -62,19 +93,23 @@ export default function EventModal({
         <div className="field-row">
           <label className="field">
             <span>Start</span>
-            <input
-              type="time"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-            />
+            <select value={startTime} onChange={(e) => changeStart(e.target.value)}>
+              {TIME_OPTIONS.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="field">
             <span>End</span>
-            <input
-              type="time"
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
-            />
+            <select value={endTime} onChange={(e) => setEndTime(e.target.value)}>
+              {endOptions.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
           </label>
         </div>
 

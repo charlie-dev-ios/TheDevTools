@@ -59,6 +59,7 @@ export default function MonthView({
                   <button
                     key={event.id}
                     className="cell-event"
+                    title={event.description ? `${event.title}\n${event.description}` : event.title}
                     onClick={(e) => {
                       e.stopPropagation()
                       onSelect(event)

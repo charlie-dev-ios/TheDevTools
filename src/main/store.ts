@@ -11,6 +11,8 @@ export interface Snippet {
 export interface CalendarEvent {
   id: string
   title: string
+  /** Optional free-text notes about the event. */
+  description?: string
   /** ISO datetime string. */
   start: string
   /** ISO datetime string. */
