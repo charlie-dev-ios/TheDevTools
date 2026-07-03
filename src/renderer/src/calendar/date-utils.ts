@@ -1,4 +1,7 @@
-export const HOUR_HEIGHT = 48 // px per hour in the day view
+export const HOUR_HEIGHT = 48 // default px per hour in the day view
+// Cmd+wheel zoom bounds for the day view (px per hour).
+export const MIN_HOUR_HEIGHT = 24
+export const MAX_HOUR_HEIGHT = 192
 export const SNAP_MINUTES = 15
 // Visible range of the day view (hours, 24h clock).
 export const DAY_START_HOUR = 7

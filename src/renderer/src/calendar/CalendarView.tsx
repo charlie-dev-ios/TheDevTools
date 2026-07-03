@@ -3,7 +3,8 @@ import type { CalendarEvent } from '../types'
 import MonthView from './MonthView'
 import DayView from './DayView'
 import EventModal from './EventModal'
-import { addDays, addMonths, dayTitle, monthTitle } from './date-utils'
+import EventPanel from './EventPanel'
+import { HOUR_HEIGHT, addDays, addMonths, dayTitle, monthTitle } from './date-utils'
 
 type Mode = 'month' | 'day'
 
@@ -16,7 +17,10 @@ export default function CalendarView(): JSX.Element {
   const [mode, setMode] = useState<Mode>('month')
   const [cursor, setCursor] = useState<Date>(new Date())
   const [events, setEvents] = useState<CalendarEvent[]>([])
+  // Month view edits through the modal; day view edits through the side panel.
   const [editing, setEditing] = useState<Editing | null>(null)
+  const [draft, setDraft] = useState<Editing | null>(null)
+  const [hourHeight, setHourHeight] = useState(HOUR_HEIGHT)
 
   useEffect(() => {
     window.api.getEvents().then(setEvents)
@@ -38,11 +42,12 @@ export default function CalendarView(): JSX.Element {
   function remove(id: string): void {
     void persist(events.filter((e) => e.id !== id))
     setEditing(null)
+    setDraft(null)
   }
 
   function newEventAt(start: Date, durationMin = 60): void {
     const end = new Date(start.getTime() + durationMin * 60_000)
-    setEditing({
+    const entry: Editing = {
       event: {
         id: crypto.randomUUID(),
         title: '',
@@ -50,7 +55,17 @@ export default function CalendarView(): JSX.Element {
         end: end.toISOString()
       },
       isNew: true
-    })
+    }
+    if (mode === 'day') {
+      setDraft(entry)
+    } else {
+      setEditing(entry)
+    }
+  }
+
+  function switchMode(next: Mode): void {
+    if (next === 'month') setDraft(null)
+    setMode(next)
   }
 
   function step(direction: number): void {
@@ -77,13 +92,13 @@ export default function CalendarView(): JSX.Element {
         <div className="mode-toggle">
           <button
             className={mode === 'month' ? 'seg active' : 'seg'}
-            onClick={() => setMode('month')}
+            onClick={() => switchMode('month')}
           >
             Month
           </button>
           <button
             className={mode === 'day' ? 'seg active' : 'seg'}
-            onClick={() => setMode('day')}
+            onClick={() => switchMode('day')}
           >
             Day
           </button>
@@ -112,13 +127,32 @@ export default function CalendarView(): JSX.Element {
             onSelect={(event) => setEditing({ event, isNew: false })}
           />
         ) : (
-          <DayView
-            date={cursor}
-            events={events}
-            onUpdate={upsert}
-            onCreateAt={(start) => newEventAt(start, 60)}
-            onSelect={(event) => setEditing({ event, isNew: false })}
-          />
+          <>
+            <DayView
+              date={cursor}
+              events={events}
+              draft={draft?.event ?? null}
+              hourHeight={hourHeight}
+              onHourHeightChange={setHourHeight}
+              onUpdate={upsert}
+              onDraftChange={(event) => setDraft((d) => (d ? { ...d, event } : d))}
+              onCreateAt={(start) => newEventAt(start, 60)}
+              onSelect={(event) => setDraft({ event: { ...event }, isNew: false })}
+            />
+            {draft && (
+              <EventPanel
+                event={draft.event}
+                isNew={draft.isNew}
+                onChange={(event) => setDraft((d) => (d ? { ...d, event } : d))}
+                onSave={(event) => {
+                  upsert(event)
+                  setDraft(null)
+                }}
+                onDelete={remove}
+                onCancel={() => setDraft(null)}
+              />
+            )}
+          </>
         )}
       </div>
 
