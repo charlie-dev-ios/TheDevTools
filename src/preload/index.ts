@@ -18,7 +18,8 @@ export interface Todo {
   id: string
   title: string
   due: string
-  repeat: 'none' | 'daily' | 'weekly' | 'monthly'
+  repeat: 'none' | 'daily' | 'weekly' | 'monthly' | 'weekdays'
+  repeatDays?: number[]
   completed: boolean
 }
 

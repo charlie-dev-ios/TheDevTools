@@ -4,7 +4,7 @@ export interface Snippet {
   content: string
 }
 
-export type TodoRepeat = 'none' | 'daily' | 'weekly' | 'monthly'
+export type TodoRepeat = 'none' | 'daily' | 'weekly' | 'monthly' | 'weekdays'
 
 export interface Todo {
   id: string
@@ -13,6 +13,8 @@ export interface Todo {
   due: string
   /** How the todo repeats. Completing a repeating todo queues the next occurrence. */
   repeat: TodoRepeat
+  /** Weekdays the todo repeats on (0=Sun … 6=Sat) when repeat === 'weekdays'. */
+  repeatDays?: number[]
   completed: boolean
 }
 

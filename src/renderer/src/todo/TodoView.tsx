@@ -1,23 +1,37 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Todo, TodoRepeat } from '../types'
-import { toDateInput } from '../calendar/date-utils'
+import { toDateInput, WEEKDAYS } from '../calendar/date-utils'
 
 const REPEAT_OPTIONS: { value: TodoRepeat; label: string }[] = [
   { value: 'none', label: 'No repeat' },
   { value: 'daily', label: 'Daily' },
   { value: 'weekly', label: 'Weekly' },
+  { value: 'weekdays', label: 'Weekly on days…' },
   { value: 'monthly', label: 'Monthly' }
 ]
 
-function repeatLabel(repeat: TodoRepeat): string {
+function repeatLabel(repeat: TodoRepeat, repeatDays?: number[]): string {
+  if (repeat === 'weekdays') {
+    const days = [...(repeatDays ?? [])].sort((a, b) => a - b)
+    return days.length > 0 ? days.map((d) => WEEKDAYS[d]).join(' · ') : 'Weekly'
+  }
   return REPEAT_OPTIONS.find((o) => o.value === repeat)?.label ?? repeat
 }
 
 /** The due date of the occurrence after `due` for a repeating todo. */
-function nextDue(due: string, repeat: TodoRepeat): string {
+function nextDue(due: string, repeat: TodoRepeat, repeatDays?: number[]): string {
   const [y, m, d] = due.split('-').map(Number)
   if (repeat === 'daily') return toDateInput(new Date(y, m - 1, d + 1))
   if (repeat === 'weekly') return toDateInput(new Date(y, m - 1, d + 7))
+  if (repeat === 'weekdays') {
+    // The first day after `due` that falls on one of the selected weekdays.
+    const days = repeatDays ?? []
+    for (let i = 1; i <= 7; i++) {
+      const candidate = new Date(y, m - 1, d + i)
+      if (days.includes(candidate.getDay())) return toDateInput(candidate)
+    }
+    return toDateInput(new Date(y, m - 1, d + 7))
+  }
   // Monthly: clamp to the last day of the next month (e.g. Jan 31 → Feb 28).
   const lastOfNextMonth = new Date(y, m + 1, 0).getDate()
   return toDateInput(new Date(y, m, Math.min(d, lastOfNextMonth)))
@@ -49,21 +63,22 @@ export default function TodoView(): JSX.Element {
     await window.api.saveTodos(next)
   }
 
-  async function save(draft: { id?: string; title: string; due: string; repeat: TodoRepeat }): Promise<void> {
+  async function save(draft: {
+    id?: string
+    title: string
+    due: string
+    repeat: TodoRepeat
+    repeatDays?: number[]
+  }): Promise<void> {
+    const fields = {
+      title: draft.title,
+      due: draft.due,
+      repeat: draft.repeat,
+      repeatDays: draft.repeat === 'weekdays' ? draft.repeatDays : undefined
+    }
     const next = draft.id
-      ? todos.map((t) =>
-          t.id === draft.id ? { ...t, title: draft.title, due: draft.due, repeat: draft.repeat } : t
-        )
-      : [
-          ...todos,
-          {
-            id: crypto.randomUUID(),
-            title: draft.title,
-            due: draft.due,
-            repeat: draft.repeat,
-            completed: false
-          }
-        ]
+      ? todos.map((t) => (t.id === draft.id ? { ...t, ...fields } : t))
+      : [...todos, { id: crypto.randomUUID(), ...fields, completed: false }]
     await update(next)
     setEditing(null)
   }
@@ -81,8 +96,9 @@ export default function TodoView(): JSX.Element {
         {
           id: crypto.randomUUID(),
           title: todo.title,
-          due: nextDue(todo.due, todo.repeat),
+          due: nextDue(todo.due, todo.repeat, todo.repeatDays),
           repeat: todo.repeat,
+          repeatDays: todo.repeatDays,
           completed: false
         }
       ]
@@ -185,8 +201,11 @@ function TodoRow({
       />
       <span className="row-text todo-title">{todo.title}</span>
       {todo.repeat !== 'none' && (
-        <span className="todo-repeat" title={`Repeats ${repeatLabel(todo.repeat).toLowerCase()}`}>
-          🔁 {repeatLabel(todo.repeat)}
+        <span
+          className="todo-repeat"
+          title={`Repeats: ${repeatLabel(todo.repeat, todo.repeatDays)}`}
+        >
+          🔁 {repeatLabel(todo.repeat, todo.repeatDays)}
         </span>
       )}
       <span className={todo.completed ? 'todo-due' : `todo-due ${status}`}>
@@ -224,19 +243,48 @@ function TodoModal({
   onCancel
 }: {
   initial: Todo | null
-  onSave: (draft: { id?: string; title: string; due: string; repeat: TodoRepeat }) => void
+  onSave: (draft: {
+    id?: string
+    title: string
+    due: string
+    repeat: TodoRepeat
+    repeatDays?: number[]
+  }) => void
   onCancel: () => void
 }): JSX.Element {
   const [title, setTitle] = useState(initial?.title ?? '')
   const [due, setDue] = useState(initial?.due ?? toDateInput(new Date()))
   const [repeat, setRepeat] = useState<TodoRepeat>(initial?.repeat ?? 'none')
+  const [repeatDays, setRepeatDays] = useState<number[]>(initial?.repeatDays ?? [])
 
-  const valid = title.trim().length > 0 && due.length > 0
+  const valid =
+    title.trim().length > 0 && due.length > 0 && (repeat !== 'weekdays' || repeatDays.length > 0)
+
+  function toggleDay(day: number): void {
+    setRepeatDays((days) =>
+      days.includes(day) ? days.filter((d) => d !== day) : [...days, day].sort((a, b) => a - b)
+    )
+  }
+
+  function changeRepeat(value: TodoRepeat): void {
+    setRepeat(value)
+    // Seed the weekday picker with the due date's weekday the first time.
+    if (value === 'weekdays' && repeatDays.length === 0 && due) {
+      const [y, m, d] = due.split('-').map(Number)
+      setRepeatDays([new Date(y, m - 1, d).getDay()])
+    }
+  }
 
   function submit(e: React.FormEvent): void {
     e.preventDefault()
     if (!valid) return
-    onSave({ id: initial?.id, title: title.trim(), due, repeat })
+    onSave({
+      id: initial?.id,
+      title: title.trim(),
+      due,
+      repeat,
+      repeatDays: repeat === 'weekdays' ? repeatDays : undefined
+    })
   }
 
   return (
@@ -259,7 +307,7 @@ function TodoModal({
           </label>
           <label className="field">
             Repeat
-            <select value={repeat} onChange={(e) => setRepeat(e.target.value as TodoRepeat)}>
+            <select value={repeat} onChange={(e) => changeRepeat(e.target.value as TodoRepeat)}>
               {REPEAT_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
@@ -268,6 +316,23 @@ function TodoModal({
             </select>
           </label>
         </div>
+        {repeat === 'weekdays' && (
+          <div className="field">
+            Repeat on
+            <div className="weekday-picker">
+              {WEEKDAYS.map((label, day) => (
+                <button
+                  key={day}
+                  type="button"
+                  className={repeatDays.includes(day) ? 'weekday-chip active' : 'weekday-chip'}
+                  onClick={() => toggleDay(day)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="modal-actions">
           <button type="submit" className="btn primary" disabled={!valid}>
             {initial ? 'Save' : 'Add'}
