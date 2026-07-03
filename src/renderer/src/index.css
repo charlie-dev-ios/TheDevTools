@@ -756,7 +756,7 @@ body {
   background: rgba(76, 139, 245, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 6px;
-  padding: 0 8px;
+  padding: 3px 10px;
   color: #fff;
   font-size: 12px;
   overflow: hidden;
@@ -771,14 +771,13 @@ body {
   z-index: 5;
 }
 
-/* Sized so one line still fits inside a minimum-height (16px) block. */
+/* Sized so one line still fits inside a minimum-height (18px) block. */
 .event-header {
   display: flex;
   align-items: baseline;
   gap: 8px;
   overflow: hidden;
   line-height: 10px;
-  padding-top: 2px;
 }
 
 .event-title {

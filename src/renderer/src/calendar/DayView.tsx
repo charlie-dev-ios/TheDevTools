@@ -48,8 +48,9 @@ function snapClamp(absMin: number, maxStart: number): number {
 }
 
 // Minimum rendered block height in pixels: zoomed in, short events show their
-// true duration; zoomed out, a block never collapses below one readable line.
-const MIN_EVENT_PX = 16
+// true duration; zoomed out, a block never collapses below one readable line
+// (2px borders + 6px padding + one 10px text line).
+const MIN_EVENT_PX = 18
 
 interface Positioned {
   event: CalendarEvent
