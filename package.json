@@ -1,5 +1,6 @@
 {
   "name": "thedevtools",
+  "productName": "TheDevTools",
   "version": "0.1.0",
   "description": "A menu-bar utility for clipboard history and snippets on macOS",
   "main": "./out/main/index.js",
