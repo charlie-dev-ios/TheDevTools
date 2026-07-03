@@ -14,6 +14,14 @@ export interface CalendarEvent {
   end: string
 }
 
+export interface Todo {
+  id: string
+  title: string
+  due: string
+  repeat: 'none' | 'daily' | 'weekly' | 'monthly'
+  completed: boolean
+}
+
 const api = {
   getHistory: (): Promise<string[]> => ipcRenderer.invoke('history:get'),
   clearHistory: (): Promise<string[]> => ipcRenderer.invoke('history:clear'),
@@ -25,6 +33,8 @@ const api = {
   getEvents: (): Promise<CalendarEvent[]> => ipcRenderer.invoke('events:get'),
   saveEvents: (events: CalendarEvent[]): Promise<CalendarEvent[]> =>
     ipcRenderer.invoke('events:save', events),
+  getTodos: (): Promise<Todo[]> => ipcRenderer.invoke('todos:get'),
+  saveTodos: (todos: Todo[]): Promise<Todo[]> => ipcRenderer.invoke('todos:save', todos),
   // Copy without moving focus (used by the main window).
   copy: (text: string): Promise<void> => ipcRenderer.invoke('clipboard:copy', text),
   // Insert text into the app that was focused before the launcher opened.
