@@ -47,6 +47,10 @@ function snapClamp(absMin: number, maxStart: number): number {
   return Math.max(RANGE_START_MIN, Math.min(snapped, maxStart))
 }
 
+// Minimum rendered block height in pixels: zoomed in, short events show their
+// true duration; zoomed out, a block never collapses below one readable line.
+const MIN_EVENT_PX = 16
+
 interface Positioned {
   event: CalendarEvent
   startMin: number
@@ -58,19 +62,20 @@ interface Laid extends Positioned {
   cols: number
 }
 
-/** Rendered bottom edge in minutes: real end, but at least the minimum block height. */
-function visualEnd(p: Positioned): number {
-  return Math.max(p.endMin, p.startMin + SNAP_MINUTES)
+/** Rendered bottom edge in minutes: real end, but at least `minMin` tall. */
+function visualEnd(p: Positioned, minMin: number): number {
+  return Math.max(p.endMin, p.startMin + minMin)
 }
 
 /**
  * Assign overlapping events to side-by-side columns. Events are grouped into
  * clusters of transitively overlapping blocks (using their rendered extents,
- * so a 5-minute event still occupies 15 minutes of space); every event in a
+ * so the pixel minimum height counts as occupied space); every event in a
  * cluster shares the cluster's column count, and non-overlapping events keep
- * a single full-width column.
+ * a single full-width column. `minMin` is the minimum block height expressed
+ * in minutes at the current zoom.
  */
-function layoutEvents(items: Positioned[]): Laid[] {
+function layoutEvents(items: Positioned[], minMin: number): Laid[] {
   const sorted = [...items].sort((a, b) => a.startMin - b.startMin || b.endMin - a.endMin)
   const laid: Laid[] = []
   let cluster: Laid[] = []
@@ -90,12 +95,12 @@ function layoutEvents(items: Positioned[]): Laid[] {
     let col = colEnds.findIndex((end) => end <= item.startMin)
     if (col === -1) {
       col = colEnds.length
-      colEnds.push(visualEnd(item))
+      colEnds.push(visualEnd(item, minMin))
     } else {
-      colEnds[col] = visualEnd(item)
+      colEnds[col] = visualEnd(item, minMin)
     }
     cluster.push({ ...item, col, cols: 0 })
-    clusterEnd = Math.max(clusterEnd, visualEnd(item))
+    clusterEnd = Math.max(clusterEnd, visualEnd(item, minMin))
   }
   flush()
   return laid
@@ -280,6 +285,9 @@ export default function DayView({
   const nowMin = minutesSinceMidnight(now)
   const showNow = isSameDay(now, date) && nowMin >= RANGE_START_MIN && nowMin <= RANGE_END_MIN
 
+  // The pixel minimum height converted to minutes at the current zoom.
+  const minVisualMin = (MIN_EVENT_PX / hourHeight) * 60
+
   // Apply live drag positions, then lay overlapping events out side by side.
   const laidEvents = layoutEvents(
     dayEvents.map((event) => {
@@ -289,7 +297,8 @@ export default function DayView({
         startMin: live ? drag.startMin : minutesSinceMidnight(new Date(event.start)),
         endMin: live ? drag.endMin : minutesSinceMidnight(new Date(event.end))
       }
-    })
+    }),
+    minVisualMin
   )
 
   function renderBlock(
@@ -297,10 +306,10 @@ export default function DayView({
     kind: 'event' | 'draft'
   ): JSX.Element {
     const live = drag && drag.kind === kind && drag.id === event.id
-    // The top edge sits exactly at the start time; the height is at least one
-    // snap step tall, so the bottom edge may run past short events' end time.
+    // The top edge sits exactly at the start time; the height never drops
+    // below the pixel minimum, so short events' bottom edge may overshoot.
     const top = minToTop(startMin)
-    const height = ((visualEnd({ event, startMin, endMin }) - startMin) / 60) * hourHeight
+    const height = Math.max(((endMin - startMin) / 60) * hourHeight, MIN_EVENT_PX)
     // 4px inset on the left, 12px on the right, 2px gutter between columns.
     const left = `calc(4px + (100% - 16px) * ${col} / ${cols})`
     const width = `calc((100% - 16px) / ${cols}${cols > 1 ? ' - 2px' : ''})`
