@@ -19,17 +19,32 @@ export interface CalendarEvent {
   end: string
 }
 
+export type TodoRepeat = 'none' | 'daily' | 'weekly' | 'monthly' | 'weekdays'
+
+export interface Todo {
+  id: string
+  title: string
+  /** Due date as 'YYYY-MM-DD'. */
+  due: string
+  /** How the todo repeats. Completing a repeating todo queues the next occurrence. */
+  repeat: TodoRepeat
+  /** Weekdays the todo repeats on (0=Sun … 6=Sat) when repeat === 'weekdays'. */
+  repeatDays?: number[]
+  completed: boolean
+}
+
 interface Data {
   history: string[]
   snippets: Snippet[]
   events: CalendarEvent[]
+  todos: Todo[]
 }
 
 const MAX_HISTORY = 200
 
 const filePath = join(app.getPath('userData'), 'thedevtools-data.json')
 
-let data: Data = { history: [], snippets: [], events: [] }
+let data: Data = { history: [], snippets: [], events: [], todos: [] }
 
 export function load(): void {
   try {
@@ -38,12 +53,13 @@ export function load(): void {
       data = {
         history: Array.isArray(parsed.history) ? parsed.history : [],
         snippets: Array.isArray(parsed.snippets) ? parsed.snippets : [],
-        events: Array.isArray(parsed.events) ? parsed.events : []
+        events: Array.isArray(parsed.events) ? parsed.events : [],
+        todos: Array.isArray(parsed.todos) ? parsed.todos : []
       }
     }
   } catch (err) {
     console.error('Failed to load data, starting fresh:', err)
-    data = { history: [], snippets: [], events: [] }
+    data = { history: [], snippets: [], events: [], todos: [] }
   }
 }
 
@@ -104,5 +120,14 @@ export function getEvents(): CalendarEvent[] {
 
 export function saveEvents(events: CalendarEvent[]): void {
   data.events = events
+  persist()
+}
+
+export function getTodos(): Todo[] {
+  return data.todos
+}
+
+export function saveTodos(todos: Todo[]): void {
+  data.todos = todos
   persist()
 }

@@ -21,8 +21,11 @@ import {
   saveSnippets,
   getEvents,
   saveEvents,
+  getTodos,
+  saveTodos,
   type Snippet,
-  type CalendarEvent
+  type CalendarEvent,
+  type Todo
 } from './store.js'
 
 const POLL_INTERVAL_MS = 800
@@ -249,6 +252,11 @@ function registerIpc(): void {
   ipcMain.handle('events:save', (_event, events: CalendarEvent[]) => {
     saveEvents(events)
     return getEvents()
+  })
+  ipcMain.handle('todos:get', () => getTodos())
+  ipcMain.handle('todos:save', (_event, todos: Todo[]) => {
+    saveTodos(todos)
+    return getTodos()
   })
   ipcMain.handle('clipboard:copy', (_event, text: string) => copyToClipboard(text))
   ipcMain.handle('paste', (_event, text: string) => pasteFromLauncher(text))

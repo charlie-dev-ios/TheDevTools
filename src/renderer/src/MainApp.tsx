@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import CalendarView from './calendar/CalendarView'
 import SnippetEditor from './components/SnippetEditor'
+import TodoView from './todo/TodoView'
 import type { Snippet } from './types'
 
-type View = 'calendar' | 'history' | 'snippets'
+type View = 'calendar' | 'todos' | 'history' | 'snippets'
 
 const NAV: { id: View; label: string; icon: string }[] = [
   { id: 'calendar', label: 'Calendar', icon: '📅' },
+  { id: 'todos', label: 'Todos', icon: '✅' },
   { id: 'history', label: 'Clipboard History', icon: '📋' },
   { id: 'snippets', label: 'Snippets', icon: '✂️' }
 ]
@@ -42,6 +44,7 @@ export default function MainApp(): JSX.Element {
 
       <section className="content">
         {view === 'calendar' && <CalendarView />}
+        {view === 'todos' && <TodoView />}
         {view === 'history' && <HistoryPanel onToast={setToast} />}
         {view === 'snippets' && <SnippetsPanel onToast={setToast} />}
       </section>
