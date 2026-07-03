@@ -246,9 +246,13 @@ export default function DayView({
           if (kind === 'event' && !draggedRef.current) onSelect(event)
         }}
       >
-        <div className="event-title">{event.title || (kind === 'draft' ? 'New event' : '')}</div>
-        <div className="event-time">
-          {fmtMin(startMin)}–{fmtMin(endMin)}
+        <div className="event-header">
+          <span className="event-title">
+            {event.title || (kind === 'draft' ? 'New event' : '')}
+          </span>
+          <span className="event-time">
+            {fmtMin(startMin)}–{fmtMin(endMin)}
+          </span>
         </div>
         {event.description && <div className="event-desc">{event.description}</div>}
         <div className="event-resize" onPointerDown={(e) => beginDrag(e, event, 'resize', kind)} />

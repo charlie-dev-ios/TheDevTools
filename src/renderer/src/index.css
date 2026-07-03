@@ -677,6 +677,13 @@ body {
   z-index: 5;
 }
 
+.event-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  overflow: hidden;
+}
+
 .event-title {
   font-weight: 600;
   white-space: nowrap;
@@ -687,6 +694,8 @@ body {
 .event-time {
   font-size: 11px;
   opacity: 0.85;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .event-desc {
