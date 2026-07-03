@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CalendarEvent } from '../types'
 import {
   DAY_END_HOUR,
   DAY_START_HOUR,
-  HOUR_HEIGHT,
+  MAX_HOUR_HEIGHT,
+  MIN_HOUR_HEIGHT,
   formatTime,
   isSameDay,
   minutesSinceMidnight,
@@ -13,13 +14,19 @@ import {
 interface Props {
   date: Date
   events: CalendarEvent[]
+  /** Working copy being edited in the side panel, shown as a dashed block. */
+  draft: CalendarEvent | null
+  hourHeight: number
+  onHourHeightChange: (height: number) => void
   onUpdate: (event: CalendarEvent) => void
+  onDraftChange: (event: CalendarEvent) => void
   onCreateAt: (start: Date) => void
   onSelect: (event: CalendarEvent) => void
 }
 
 interface DragState {
   id: string
+  kind: 'event' | 'draft'
   mode: 'move' | 'resize'
   grabOffsetMin: number // pointer offset within the event at grab (move only)
   durationMin: number
@@ -29,17 +36,11 @@ interface DragState {
 
 const RANGE_START_MIN = DAY_START_HOUR * 60
 const RANGE_END_MIN = DAY_END_HOUR * 60
-const GRID_HEIGHT = (DAY_END_HOUR - DAY_START_HOUR) * HOUR_HEIGHT
 // Hour lines at 7, 8, … 21.
 const HOUR_MARKS = Array.from(
   { length: DAY_END_HOUR - DAY_START_HOUR + 1 },
   (_, i) => DAY_START_HOUR + i
 )
-
-/** Absolute minutes-from-midnight → pixels from the top of the grid. */
-function minToTop(absMin: number): number {
-  return ((absMin - RANGE_START_MIN) / 60) * HOUR_HEIGHT
-}
 
 function snapClamp(absMin: number, maxStart: number): number {
   const snapped = Math.round(absMin / SNAP_MINUTES) * SNAP_MINUTES
@@ -49,13 +50,20 @@ function snapClamp(absMin: number, maxStart: number): number {
 export default function DayView({
   date,
   events,
+  draft,
+  hourHeight,
+  onHourHeightChange,
   onUpdate,
+  onDraftChange,
   onCreateAt,
   onSelect
 }: Props): JSX.Element {
+  const containerRef = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
   const [drag, setDrag] = useState<DragState | null>(null)
   const draggedRef = useRef(false)
+  // Scroll offset to apply after a zoom re-render, keeping the pointer anchored.
+  const pendingScrollRef = useRef<number | null>(null)
   // Re-render every minute so the "now" line stays current.
   const [now, setNow] = useState<Date>(() => new Date())
 
@@ -64,8 +72,17 @@ export default function DayView({
     return () => clearInterval(timer)
   }, [])
 
+  const gridHeight = (DAY_END_HOUR - DAY_START_HOUR) * hourHeight
+
+  /** Absolute minutes-from-midnight → pixels from the top of the grid. */
+  function minToTop(absMin: number): number {
+    return ((absMin - RANGE_START_MIN) / 60) * hourHeight
+  }
+
+  const draftOnDay = draft && isSameDay(new Date(draft.start), date) ? draft : null
   const dayEvents = events
     .filter((e) => isSameDay(new Date(e.start), date))
+    .filter((e) => !draft || e.id !== draft.id)
     .sort((a, b) => a.start.localeCompare(b.start))
 
   /** Client Y → absolute minutes from midnight. */
@@ -74,8 +91,41 @@ export default function DayView({
     if (!grid) return RANGE_START_MIN
     const rect = grid.getBoundingClientRect()
     const y = clientY - rect.top
-    return RANGE_START_MIN + (y / HOUR_HEIGHT) * 60
+    return RANGE_START_MIN + (y / hourHeight) * 60
   }
+
+  // Cmd (or Ctrl) + wheel zooms the timeline around the pointer.
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    function onWheel(e: WheelEvent): void {
+      if (!(e.metaKey || e.ctrlKey)) return
+      e.preventDefault()
+      const next = Math.max(
+        MIN_HOUR_HEIGHT,
+        Math.min(hourHeight * Math.exp(-e.deltaY * 0.002), MAX_HOUR_HEIGHT)
+      )
+      if (next === hourHeight) return
+      const rect = container!.getBoundingClientRect()
+      const offsetY = e.clientY - rect.top
+      const pointerMin = RANGE_START_MIN + ((container!.scrollTop + offsetY) / hourHeight) * 60
+      pendingScrollRef.current =
+        ((pointerMin - RANGE_START_MIN) / 60) * next - offsetY
+      onHourHeightChange(next)
+    }
+
+    container.addEventListener('wheel', onWheel, { passive: false })
+    return () => container.removeEventListener('wheel', onWheel)
+  }, [hourHeight, onHourHeightChange])
+
+  useLayoutEffect(() => {
+    const container = containerRef.current
+    if (container && pendingScrollRef.current != null) {
+      container.scrollTop = Math.max(0, pendingScrollRef.current)
+    }
+    pendingScrollRef.current = null
+  }, [hourHeight])
 
   useEffect(() => {
     if (!drag) return
@@ -99,19 +149,24 @@ export default function DayView({
     }
 
     function onUp(): void {
-      setDrag((prev) => {
-        if (prev && draggedRef.current) {
-          const start = new Date(date)
-          start.setHours(0, prev.startMin, 0, 0)
-          const end = new Date(date)
-          end.setHours(0, prev.endMin, 0, 0)
-          const source = dayEvents.find((ev) => ev.id === prev.id)
+      // The effect re-subscribes whenever `drag` changes, so the closure is fresh.
+      if (drag && draggedRef.current) {
+        const start = new Date(date)
+        start.setHours(0, drag.startMin, 0, 0)
+        const end = new Date(date)
+        end.setHours(0, drag.endMin, 0, 0)
+        if (drag.kind === 'draft') {
+          if (draft) {
+            onDraftChange({ ...draft, start: start.toISOString(), end: end.toISOString() })
+          }
+        } else {
+          const source = dayEvents.find((ev) => ev.id === drag.id)
           if (source) {
             onUpdate({ ...source, start: start.toISOString(), end: end.toISOString() })
           }
         }
-        return null
-      })
+      }
+      setDrag(null)
       setTimeout(() => {
         draggedRef.current = false
       }, 0)
@@ -123,12 +178,13 @@ export default function DayView({
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
     }
-  }, [drag, date, dayEvents, onUpdate])
+  }, [drag, date, dayEvents, draft, onUpdate, onDraftChange])
 
   function beginDrag(
     e: React.PointerEvent,
     event: CalendarEvent,
-    mode: 'move' | 'resize'
+    mode: 'move' | 'resize',
+    kind: 'event' | 'draft' = 'event'
   ): void {
     e.preventDefault()
     e.stopPropagation()
@@ -136,6 +192,7 @@ export default function DayView({
     const endMin = minutesSinceMidnight(new Date(event.end))
     setDrag({
       id: event.id,
+      kind,
       mode,
       grabOffsetMin: pointerAbsMin(e.clientY) - startMin,
       durationMin: endMin - startMin,
@@ -146,6 +203,20 @@ export default function DayView({
 
   function onGridClick(e: React.MouseEvent): void {
     if (draggedRef.current) return
+    if (draft) {
+      // A draft is open: clicking the grid moves it there, keeping its duration.
+      const durationMin = Math.max(
+        SNAP_MINUTES,
+        (new Date(draft.end).getTime() - new Date(draft.start).getTime()) / 60_000
+      )
+      const startMin = snapClamp(pointerAbsMin(e.clientY), RANGE_END_MIN - durationMin)
+      const start = new Date(date)
+      start.setHours(0, startMin, 0, 0)
+      const end = new Date(date)
+      end.setHours(0, startMin + durationMin, 0, 0)
+      onDraftChange({ ...draft, start: start.toISOString(), end: end.toISOString() })
+      return
+    }
     const startMin = snapClamp(pointerAbsMin(e.clientY), RANGE_END_MIN - 30)
     const start = new Date(date)
     start.setHours(0, startMin, 0, 0)
@@ -155,12 +226,42 @@ export default function DayView({
   const nowMin = minutesSinceMidnight(now)
   const showNow = isSameDay(now, date) && nowMin >= RANGE_START_MIN && nowMin <= RANGE_END_MIN
 
+  function renderBlock(event: CalendarEvent, kind: 'event' | 'draft'): JSX.Element {
+    const live = drag && drag.kind === kind && drag.id === event.id
+    const startMin = live ? drag.startMin : minutesSinceMidnight(new Date(event.start))
+    const endMin = live ? drag.endMin : minutesSinceMidnight(new Date(event.end))
+    const top = minToTop(startMin)
+    const height = Math.max(((endMin - startMin) / 60) * hourHeight, 18)
+    const classes = ['event']
+    if (kind === 'draft') classes.push('draft')
+    if (live) classes.push('dragging')
+    return (
+      <div
+        key={kind === 'draft' ? 'draft' : event.id}
+        className={classes.join(' ')}
+        style={{ top, height }}
+        onPointerDown={(e) => beginDrag(e, event, 'move', kind)}
+        onClick={(e) => {
+          e.stopPropagation()
+          if (kind === 'event' && !draggedRef.current) onSelect(event)
+        }}
+      >
+        <div className="event-title">{event.title || (kind === 'draft' ? 'New event' : '')}</div>
+        <div className="event-time">
+          {fmtMin(startMin)}–{fmtMin(endMin)}
+        </div>
+        {event.description && <div className="event-desc">{event.description}</div>}
+        <div className="event-resize" onPointerDown={(e) => beginDrag(e, event, 'resize', kind)} />
+      </div>
+    )
+  }
+
   return (
-    <div className="dayview">
+    <div className="dayview" ref={containerRef}>
       <div
         className="dayview-grid"
         ref={gridRef}
-        style={{ height: GRID_HEIGHT }}
+        style={{ height: gridHeight }}
         onClick={onGridClick}
       >
         {HOUR_MARKS.map((h) => (
@@ -169,35 +270,9 @@ export default function DayView({
           </div>
         ))}
 
-        {dayEvents.map((event) => {
-          const live = drag && drag.id === event.id
-          const startMin = live ? drag.startMin : minutesSinceMidnight(new Date(event.start))
-          const endMin = live ? drag.endMin : minutesSinceMidnight(new Date(event.end))
-          const top = minToTop(startMin)
-          const height = Math.max(((endMin - startMin) / 60) * HOUR_HEIGHT, 18)
-          return (
-            <div
-              key={event.id}
-              className={live ? 'event dragging' : 'event'}
-              style={{ top, height }}
-              onPointerDown={(e) => beginDrag(e, event, 'move')}
-              onClick={(e) => {
-                e.stopPropagation()
-                if (!draggedRef.current) onSelect(event)
-              }}
-            >
-              <div className="event-title">{event.title}</div>
-              <div className="event-time">
-                {fmtMin(startMin)}–{fmtMin(endMin)}
-              </div>
-              {event.description && <div className="event-desc">{event.description}</div>}
-              <div
-                className="event-resize"
-                onPointerDown={(e) => beginDrag(e, event, 'resize')}
-              />
-            </div>
-          )
-        })}
+        {dayEvents.map((event) => renderBlock(event, 'event'))}
+
+        {draftOnDay && renderBlock(draftOnDay, 'draft')}
 
         {showNow && (
           <div className="now-line" style={{ top: minToTop(nowMin) }}>
