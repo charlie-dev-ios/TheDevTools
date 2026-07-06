@@ -8,13 +8,20 @@ import { HOUR_HEIGHT, addDays, addMonths, dayTitle, monthTitle } from './date-ut
 
 type Mode = 'month' | 'day'
 
+const MODE_STORAGE_KEY = 'calendar:mode'
+const DEFAULT_EVENT_MINUTES = 30
+
+function loadInitialMode(): Mode {
+  return localStorage.getItem(MODE_STORAGE_KEY) === 'day' ? 'day' : 'month'
+}
+
 interface Editing {
   event: CalendarEvent
   isNew: boolean
 }
 
 export default function CalendarView(): JSX.Element {
-  const [mode, setMode] = useState<Mode>('month')
+  const [mode, setMode] = useState<Mode>(loadInitialMode)
   const [cursor, setCursor] = useState<Date>(new Date())
   const [events, setEvents] = useState<CalendarEvent[]>([])
   // Month view edits through the modal; day view edits through the side panel.
@@ -25,6 +32,11 @@ export default function CalendarView(): JSX.Element {
   useEffect(() => {
     window.api.getEvents().then(setEvents)
   }, [])
+
+  // Remember the last used view so the calendar reopens in it.
+  useEffect(() => {
+    localStorage.setItem(MODE_STORAGE_KEY, mode)
+  }, [mode])
 
   async function persist(next: CalendarEvent[]): Promise<void> {
     setEvents(next)
@@ -45,7 +57,7 @@ export default function CalendarView(): JSX.Element {
     setDraft(null)
   }
 
-  function newEventAt(start: Date, durationMin = 60): void {
+  function newEventAt(start: Date, durationMin = DEFAULT_EVENT_MINUTES): void {
     const end = new Date(start.getTime() + durationMin * 60_000)
     const entry: Editing = {
       event: {
@@ -136,7 +148,7 @@ export default function CalendarView(): JSX.Element {
               onHourHeightChange={setHourHeight}
               onUpdate={upsert}
               onDraftChange={(event) => setDraft((d) => (d ? { ...d, event } : d))}
-              onCreateAt={(start) => newEventAt(start, 60)}
+              onCreateAt={(start) => newEventAt(start)}
               onSelect={(event) => setDraft({ event: { ...event }, isNew: false })}
             />
             {draft && (
