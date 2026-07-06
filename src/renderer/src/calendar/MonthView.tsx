@@ -10,6 +10,8 @@ import {
 interface Props {
   cursor: Date
   events: CalendarEvent[]
+  /** Tracked time entries shown as read-only "actual" chips. */
+  tracked?: CalendarEvent[]
   onOpenDay: (day: Date) => void
   onSelect: (event: CalendarEvent) => void
 }
@@ -19,16 +21,19 @@ const MAX_PER_CELL = 3
 export default function MonthView({
   cursor,
   events,
+  tracked = [],
   onOpenDay,
   onSelect
 }: Props): JSX.Element {
   const days = monthMatrix(cursor)
   const today = new Date()
 
-  function eventsOn(day: Date): CalendarEvent[] {
-    return events
-      .filter((e) => isSameDay(new Date(e.start), day))
-      .sort((a, b) => a.start.localeCompare(b.start))
+  function itemsOn(day: Date): { event: CalendarEvent; isTracked: boolean }[] {
+    const onDay = (e: CalendarEvent): boolean => isSameDay(new Date(e.start), day)
+    return [
+      ...events.filter(onDay).map((event) => ({ event, isTracked: false })),
+      ...tracked.filter(onDay).map((event) => ({ event, isTracked: true }))
+    ].sort((a, b) => a.event.start.localeCompare(b.event.start))
   }
 
   return (
@@ -42,7 +47,7 @@ export default function MonthView({
       </div>
       <div className="month-grid">
         {days.map((day) => {
-          const dayEvents = eventsOn(day)
+          const items = itemsOn(day)
           const muted = !isSameMonth(day, cursor)
           return (
             <div
@@ -55,14 +60,16 @@ export default function MonthView({
                 {day.getDate()}
               </span>
               <div className="cell-events">
-                {dayEvents.slice(0, MAX_PER_CELL).map((event) => (
+                {items.slice(0, MAX_PER_CELL).map(({ event, isTracked }) => (
                   <button
                     key={event.id}
-                    className="cell-event"
+                    className={isTracked ? 'cell-event tracked' : 'cell-event'}
                     title={event.description ? `${event.title}\n${event.description}` : event.title}
                     onClick={(e) => {
                       e.stopPropagation()
-                      onSelect(event)
+                      // Tracked chips are read-only; open the day view instead.
+                      if (isTracked) onOpenDay(day)
+                      else onSelect(event)
                     }}
                   >
                     <span className="cell-event-time">
@@ -71,7 +78,7 @@ export default function MonthView({
                     <span className="cell-event-title">{event.title}</span>
                   </button>
                 ))}
-                {dayEvents.length > MAX_PER_CELL && (
+                {items.length > MAX_PER_CELL && (
                   <button
                     className="cell-more"
                     onClick={(e) => {
@@ -79,7 +86,7 @@ export default function MonthView({
                       onOpenDay(day)
                     }}
                   >
-                    +{dayEvents.length - MAX_PER_CELL} more
+                    +{items.length - MAX_PER_CELL} more
                   </button>
                 )}
               </div>

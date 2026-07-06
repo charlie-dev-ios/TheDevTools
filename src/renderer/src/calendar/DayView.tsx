@@ -14,6 +14,8 @@ import {
 interface Props {
   date: Date
   events: CalendarEvent[]
+  /** Tracked time entries shown as read-only "actual" blocks. */
+  tracked?: CalendarEvent[]
   /** Working copy being edited in the side panel, shown as a dashed block. */
   draft: CalendarEvent | null
   hourHeight: number
@@ -56,6 +58,8 @@ interface Positioned {
   event: CalendarEvent
   startMin: number
   endMin: number
+  /** True for read-only tracked-time blocks. */
+  tracked?: boolean
 }
 
 interface Laid extends Positioned {
@@ -110,6 +114,7 @@ function layoutEvents(items: Positioned[], minMin: number): Laid[] {
 export default function DayView({
   date,
   events,
+  tracked = [],
   draft,
   hourHeight,
   onHourHeightChange,
@@ -290,23 +295,38 @@ export default function DayView({
   const minVisualMin = (MIN_EVENT_PX / hourHeight) * 60
 
   // Apply live drag positions, then lay overlapping events out side by side.
+  // Tracked-time blocks join the same layout pass so they split into columns
+  // alongside planned events instead of hiding underneath them.
   const laidEvents = layoutEvents(
-    dayEvents.map((event) => {
-      const live = drag && drag.kind === 'event' && drag.id === event.id
-      return {
-        event,
-        startMin: live ? drag.startMin : minutesSinceMidnight(new Date(event.start)),
-        endMin: live ? drag.endMin : minutesSinceMidnight(new Date(event.end))
-      }
-    }),
+    [
+      ...dayEvents.map((event) => {
+        const live = drag && drag.kind === 'event' && drag.id === event.id
+        return {
+          event,
+          startMin: live ? drag.startMin : minutesSinceMidnight(new Date(event.start)),
+          endMin: live ? drag.endMin : minutesSinceMidnight(new Date(event.end))
+        }
+      }),
+      ...tracked
+        .filter((e) => isSameDay(new Date(e.start), date))
+        .map((event) => ({
+          event,
+          startMin: minutesSinceMidnight(new Date(event.start)),
+          endMin: minutesSinceMidnight(new Date(event.end)),
+          tracked: true
+        }))
+    ],
     minVisualMin
   )
 
   function renderBlock(
     { event, startMin, endMin, col, cols }: Laid,
-    kind: 'event' | 'draft'
+    kind: 'event' | 'draft' | 'tracked'
   ): JSX.Element {
-    const live = drag && drag.kind === kind && drag.id === event.id
+    // null for read-only tracked blocks, which can't be dragged or resized.
+    const dragKind = kind === 'tracked' ? null : kind
+    const readOnly = dragKind === null
+    const live = dragKind && drag && drag.kind === dragKind && drag.id === event.id
     // The top edge sits exactly at the start time; the height never drops
     // below the pixel minimum, so short events' bottom edge may overshoot.
     const top = minToTop(startMin)
@@ -316,13 +336,17 @@ export default function DayView({
     const width = `calc((100% - 16px) / ${cols}${cols > 1 ? ' - 2px' : ''})`
     const classes = ['event']
     if (kind === 'draft') classes.push('draft')
+    if (readOnly) classes.push('tracked')
     if (live) classes.push('dragging')
     return (
       <div
         key={kind === 'draft' ? 'draft' : event.id}
         className={classes.join(' ')}
         style={{ top, height, left, width }}
-        onPointerDown={(e) => beginDrag(e, event, 'move', kind)}
+        onPointerDown={(e) => {
+          if (dragKind) beginDrag(e, event, 'move', dragKind)
+          else e.stopPropagation()
+        }}
         onClick={(e) => {
           e.stopPropagation()
           if (kind === 'event' && !draggedRef.current) onSelect(event)
@@ -337,7 +361,12 @@ export default function DayView({
           </span>
         </div>
         {event.description && <div className="event-desc">{event.description}</div>}
-        <div className="event-resize" onPointerDown={(e) => beginDrag(e, event, 'resize', kind)} />
+        {dragKind && (
+          <div
+            className="event-resize"
+            onPointerDown={(e) => beginDrag(e, event, 'resize', dragKind)}
+          />
+        )}
       </div>
     )
   }
@@ -356,7 +385,7 @@ export default function DayView({
           </div>
         ))}
 
-        {laidEvents.map((laid) => renderBlock(laid, 'event'))}
+        {laidEvents.map((laid) => renderBlock(laid, laid.tracked ? 'tracked' : 'event'))}
 
         {draftOnDay &&
           renderBlock(

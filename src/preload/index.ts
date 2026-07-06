@@ -23,6 +23,14 @@ export interface Todo {
   completed: boolean
 }
 
+export interface TimeEntry {
+  id: string
+  task: string
+  start: string
+  end: string
+  seconds: number
+}
+
 const api = {
   getHistory: (): Promise<string[]> => ipcRenderer.invoke('history:get'),
   clearHistory: (): Promise<string[]> => ipcRenderer.invoke('history:clear'),
@@ -36,6 +44,9 @@ const api = {
     ipcRenderer.invoke('events:save', events),
   getTodos: (): Promise<Todo[]> => ipcRenderer.invoke('todos:get'),
   saveTodos: (todos: Todo[]): Promise<Todo[]> => ipcRenderer.invoke('todos:save', todos),
+  getTimeEntries: (): Promise<TimeEntry[]> => ipcRenderer.invoke('time-entries:get'),
+  saveTimeEntries: (entries: TimeEntry[]): Promise<TimeEntry[]> =>
+    ipcRenderer.invoke('time-entries:save', entries),
   // Copy without moving focus (used by the main window).
   copy: (text: string): Promise<void> => ipcRenderer.invoke('clipboard:copy', text),
   // Insert text into the app that was focused before the launcher opened.

@@ -33,18 +33,31 @@ export interface Todo {
   completed: boolean
 }
 
+export interface TimeEntry {
+  id: string
+  /** Task name being tracked. */
+  task: string
+  /** ISO datetime when tracking started. */
+  start: string
+  /** ISO datetime when tracking stopped. */
+  end: string
+  /** Actively tracked seconds (paused time excluded). */
+  seconds: number
+}
+
 interface Data {
   history: string[]
   snippets: Snippet[]
   events: CalendarEvent[]
   todos: Todo[]
+  timeEntries: TimeEntry[]
 }
 
 const MAX_HISTORY = 200
 
 const filePath = join(app.getPath('userData'), 'thedevtools-data.json')
 
-let data: Data = { history: [], snippets: [], events: [], todos: [] }
+let data: Data = { history: [], snippets: [], events: [], todos: [], timeEntries: [] }
 
 export function load(): void {
   try {
@@ -54,12 +67,13 @@ export function load(): void {
         history: Array.isArray(parsed.history) ? parsed.history : [],
         snippets: Array.isArray(parsed.snippets) ? parsed.snippets : [],
         events: Array.isArray(parsed.events) ? parsed.events : [],
-        todos: Array.isArray(parsed.todos) ? parsed.todos : []
+        todos: Array.isArray(parsed.todos) ? parsed.todos : [],
+        timeEntries: Array.isArray(parsed.timeEntries) ? parsed.timeEntries : []
       }
     }
   } catch (err) {
     console.error('Failed to load data, starting fresh:', err)
-    data = { history: [], snippets: [], events: [], todos: [] }
+    data = { history: [], snippets: [], events: [], todos: [], timeEntries: [] }
   }
 }
 
@@ -129,5 +143,14 @@ export function getTodos(): Todo[] {
 
 export function saveTodos(todos: Todo[]): void {
   data.todos = todos
+  persist()
+}
+
+export function getTimeEntries(): TimeEntry[] {
+  return data.timeEntries
+}
+
+export function saveTimeEntries(timeEntries: TimeEntry[]): void {
+  data.timeEntries = timeEntries
   persist()
 }

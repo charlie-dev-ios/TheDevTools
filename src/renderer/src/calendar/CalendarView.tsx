@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import type { CalendarEvent } from '../types'
+import { useEffect, useMemo, useState } from 'react'
+import type { CalendarEvent, TimeEntry } from '../types'
 import MonthView from './MonthView'
 import DayView from './DayView'
 import EventModal from './EventModal'
@@ -21,10 +21,31 @@ export default function CalendarView(): JSX.Element {
   const [editing, setEditing] = useState<Editing | null>(null)
   const [draft, setDraft] = useState<Editing | null>(null)
   const [hourHeight, setHourHeight] = useState(HOUR_HEIGHT)
+  // "Actual" toggle: overlay tracked time entries on the calendar.
+  const [showActuals, setShowActuals] = useState(false)
+  const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([])
 
   useEffect(() => {
     window.api.getEvents().then(setEvents)
   }, [])
+
+  // Refetch on every toggle-on so newly stopped timers show up.
+  useEffect(() => {
+    if (showActuals) window.api.getTimeEntries().then(setTimeEntries)
+  }, [showActuals])
+
+  const trackedEvents = useMemo<CalendarEvent[]>(
+    () =>
+      showActuals
+        ? timeEntries.map((e) => ({
+            id: `tracked-${e.id}`,
+            title: e.task,
+            start: e.start,
+            end: e.end
+          }))
+        : [],
+    [showActuals, timeEntries]
+  )
 
   async function persist(next: CalendarEvent[]): Promise<void> {
     setEvents(next)
@@ -103,6 +124,13 @@ export default function CalendarView(): JSX.Element {
             Day
           </button>
           <button
+            className={showActuals ? 'seg actual-toggle active' : 'seg actual-toggle'}
+            onClick={() => setShowActuals((v) => !v)}
+            title="Overlay tracked time entries"
+          >
+            ⏱ Actual
+          </button>
+          <button
             className="btn primary new-event"
             onClick={() => {
               const start = new Date(cursor)
@@ -120,6 +148,7 @@ export default function CalendarView(): JSX.Element {
           <MonthView
             cursor={cursor}
             events={events}
+            tracked={trackedEvents}
             onOpenDay={(day) => {
               setCursor(day)
               setMode('day')
@@ -131,6 +160,7 @@ export default function CalendarView(): JSX.Element {
             <DayView
               date={cursor}
               events={events}
+              tracked={trackedEvents}
               draft={draft?.event ?? null}
               hourHeight={hourHeight}
               onHourHeightChange={setHourHeight}
