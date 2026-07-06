@@ -160,7 +160,8 @@ export default function CalendarView(): JSX.Element {
             <DayView
               date={cursor}
               events={events}
-              tracked={trackedEvents}
+              // Undefined when off so the day view collapses back to one lane.
+              tracked={showActuals ? trackedEvents : undefined}
               draft={draft?.event ?? null}
               hourHeight={hourHeight}
               onHourHeightChange={setHourHeight}

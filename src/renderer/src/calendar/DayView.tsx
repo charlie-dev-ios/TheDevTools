@@ -14,7 +14,11 @@ import {
 interface Props {
   date: Date
   events: CalendarEvent[]
-  /** Tracked time entries shown as read-only "actual" blocks. */
+  /**
+   * Tracked time entries shown as read-only "actual" blocks. When set (even
+   * empty), the day splits into a planned lane (left) and an actual lane
+   * (right); when undefined, planned events use the full width.
+   */
   tracked?: CalendarEvent[]
   /** Working copy being edited in the side panel, shown as a dashed block. */
   draft: CalendarEvent | null
@@ -58,8 +62,6 @@ interface Positioned {
   event: CalendarEvent
   startMin: number
   endMin: number
-  /** True for read-only tracked-time blocks. */
-  tracked?: boolean
 }
 
 interface Laid extends Positioned {
@@ -114,7 +116,7 @@ function layoutEvents(items: Positioned[], minMin: number): Laid[] {
 export default function DayView({
   date,
   events,
-  tracked = [],
+  tracked,
   draft,
   hourHeight,
   onHourHeightChange,
@@ -294,28 +296,31 @@ export default function DayView({
   // The pixel minimum height converted to minutes at the current zoom.
   const minVisualMin = (MIN_EVENT_PX / hourHeight) * 60
 
+  // Actuals get their own lane on the right; planned events keep the left.
+  const actualLane = tracked != null
+
   // Apply live drag positions, then lay overlapping events out side by side.
-  // Tracked-time blocks join the same layout pass so they split into columns
-  // alongside planned events instead of hiding underneath them.
+  // Planned and tracked blocks are laid out independently, each within its
+  // own lane, so overlap columns never mix the two kinds.
   const laidEvents = layoutEvents(
-    [
-      ...dayEvents.map((event) => {
-        const live = drag && drag.kind === 'event' && drag.id === event.id
-        return {
-          event,
-          startMin: live ? drag.startMin : minutesSinceMidnight(new Date(event.start)),
-          endMin: live ? drag.endMin : minutesSinceMidnight(new Date(event.end))
-        }
-      }),
-      ...tracked
-        .filter((e) => isSameDay(new Date(e.start), date))
-        .map((event) => ({
-          event,
-          startMin: minutesSinceMidnight(new Date(event.start)),
-          endMin: minutesSinceMidnight(new Date(event.end)),
-          tracked: true
-        }))
-    ],
+    dayEvents.map((event) => {
+      const live = drag && drag.kind === 'event' && drag.id === event.id
+      return {
+        event,
+        startMin: live ? drag.startMin : minutesSinceMidnight(new Date(event.start)),
+        endMin: live ? drag.endMin : minutesSinceMidnight(new Date(event.end))
+      }
+    }),
+    minVisualMin
+  )
+  const laidTracked = layoutEvents(
+    (tracked ?? [])
+      .filter((e) => isSameDay(new Date(e.start), date))
+      .map((event) => ({
+        event,
+        startMin: minutesSinceMidnight(new Date(event.start)),
+        endMin: minutesSinceMidnight(new Date(event.end))
+      })),
     minVisualMin
   )
 
@@ -332,8 +337,13 @@ export default function DayView({
     const top = minToTop(startMin)
     const height = Math.max(((endMin - startMin) / 60) * hourHeight, MIN_EVENT_PX)
     // 4px inset on the left, 12px on the right, 2px gutter between columns.
-    const left = `calc(4px + (100% - 16px) * ${col} / ${cols})`
-    const width = `calc((100% - 16px) / ${cols}${cols > 1 ? ' - 2px' : ''})`
+    // With the actual lane on, planned/draft blocks use the left half of the
+    // usable width and tracked blocks the right half (inset past the divider).
+    const laneStart = actualLane && readOnly ? 0.5 : 0
+    const laneSpan = actualLane ? 0.5 : 1
+    const inset = laneStart > 0 ? 3 : 0
+    const left = `calc(4px + ${inset}px + (100% - 16px) * ${laneStart + (laneSpan * col) / cols})`
+    const width = `calc((100% - 16px) * ${laneSpan / cols} - ${2 + inset}px)`
     const classes = ['event']
     if (kind === 'draft') classes.push('draft')
     if (readOnly) classes.push('tracked')
@@ -373,6 +383,12 @@ export default function DayView({
 
   return (
     <div className="dayview" ref={containerRef}>
+      {actualLane && (
+        <div className="lane-headers">
+          <span className="lane-label">Planned</span>
+          <span className="lane-label actual">Actual</span>
+        </div>
+      )}
       <div
         className="dayview-grid"
         ref={gridRef}
@@ -385,7 +401,10 @@ export default function DayView({
           </div>
         ))}
 
-        {laidEvents.map((laid) => renderBlock(laid, laid.tracked ? 'tracked' : 'event'))}
+        {actualLane && <div className="lane-divider" />}
+
+        {laidEvents.map((laid) => renderBlock(laid, 'event'))}
+        {laidTracked.map((laid) => renderBlock(laid, 'tracked'))}
 
         {draftOnDay &&
           renderBlock(
