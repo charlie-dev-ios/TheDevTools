@@ -11,7 +11,7 @@ export interface Todo {
   title: string
   /** Due date as 'YYYY-MM-DD'. */
   due: string
-  /** How the todo repeats. Completing a repeating todo queues the next occurrence. */
+  /** How the todo repeats. The next occurrence is created on the first fetch of its day. */
   repeat: TodoRepeat
   /** Weekdays the todo repeats on (0=Sun … 6=Sat) when repeat === 'weekdays'. */
   repeatDays?: number[]

@@ -18,25 +18,6 @@ function repeatLabel(repeat: TodoRepeat, repeatDays?: number[]): string {
   return REPEAT_OPTIONS.find((o) => o.value === repeat)?.label ?? repeat
 }
 
-/** The due date of the occurrence after `due` for a repeating todo. */
-function nextDue(due: string, repeat: TodoRepeat, repeatDays?: number[]): string {
-  const [y, m, d] = due.split('-').map(Number)
-  if (repeat === 'daily') return toDateInput(new Date(y, m - 1, d + 1))
-  if (repeat === 'weekly') return toDateInput(new Date(y, m - 1, d + 7))
-  if (repeat === 'weekdays') {
-    // The first day after `due` that falls on one of the selected weekdays.
-    const days = repeatDays ?? []
-    for (let i = 1; i <= 7; i++) {
-      const candidate = new Date(y, m - 1, d + i)
-      if (days.includes(candidate.getDay())) return toDateInput(candidate)
-    }
-    return toDateInput(new Date(y, m - 1, d + 7))
-  }
-  // Monthly: clamp to the last day of the next month (e.g. Jan 31 → Feb 28).
-  const lastOfNextMonth = new Date(y, m + 1, 0).getDate()
-  return toDateInput(new Date(y, m, Math.min(d, lastOfNextMonth)))
-}
-
 function formatDue(due: string): string {
   const [y, m, d] = due.split('-').map(Number)
   const date = new Date(y, m - 1, d)
@@ -60,7 +41,8 @@ export default function TodoView(): JSX.Element {
 
   async function update(next: Todo[]): Promise<void> {
     setTodos(next)
-    await window.api.saveTodos(next)
+    // The main process may roll repeating todos forward; keep in sync with it.
+    setTodos(await window.api.saveTodos(next))
   }
 
   async function save(draft: {
@@ -87,23 +69,10 @@ export default function TodoView(): JSX.Element {
     await update(todos.filter((t) => t.id !== id))
   }
 
-  // Completing a repeating todo queues its next occurrence.
+  // The next occurrence of a repeating todo is created by the main process
+  // on the first fetch of the day it becomes due, not here at completion time.
   async function toggle(todo: Todo): Promise<void> {
-    let next = todos.map((t) => (t.id === todo.id ? { ...t, completed: !t.completed } : t))
-    if (!todo.completed && todo.repeat !== 'none') {
-      next = [
-        ...next,
-        {
-          id: crypto.randomUUID(),
-          title: todo.title,
-          due: nextDue(todo.due, todo.repeat, todo.repeatDays),
-          repeat: todo.repeat,
-          repeatDays: todo.repeatDays,
-          completed: false
-        }
-      ]
-    }
-    await update(next)
+    await update(todos.map((t) => (t.id === todo.id ? { ...t, completed: !t.completed } : t)))
   }
 
   async function clearCompleted(): Promise<void> {
