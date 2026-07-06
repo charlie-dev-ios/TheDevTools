@@ -3,6 +3,7 @@
   --fg: #f0f0f2;
   --muted: #9a9aa0;
   --accent: #4c8bf5;
+  --actual: #34a853;
   --row-active: rgba(255, 255, 255, 0.1);
   --border: rgba(255, 255, 255, 0.09);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -465,6 +466,137 @@ body {
   padding: 16px 12px 4px;
 }
 
+/* ---------- Time tracking ---------- */
+.tracking-host {
+  flex: 1;
+  min-height: 0;
+}
+
+.timer-card {
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.autocomplete {
+  position: relative;
+}
+
+.task-input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--fg);
+  font-size: 15px;
+  padding: 10px 12px;
+  outline: none;
+}
+
+.task-input:focus {
+  border-color: var(--accent);
+}
+
+.task-input:disabled {
+  opacity: 0.6;
+}
+
+.suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  background: #26262a;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  z-index: 10;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.suggestions button {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  background: transparent;
+  border: none;
+  color: var(--fg);
+  font-size: 13px;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.suggestions button:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.suggestion-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.suggestion-due {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.timer-display {
+  font-size: 40px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.timer-display.running {
+  color: var(--fg);
+}
+
+.timer-controls {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.timer-task {
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.entry-range {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.entry-duration {
+  flex-shrink: 0;
+  width: 76px;
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 .toast {
   position: fixed;
   bottom: 20px;
@@ -555,6 +687,18 @@ body {
 
 .new-event {
   margin-left: 10px;
+}
+
+/* Standalone "⏱ Actual" toggle next to the Month/Day segments. */
+.seg.actual-toggle {
+  border-radius: 7px;
+  border-left: 1px solid var(--border);
+  margin-left: 10px;
+}
+
+.seg.actual-toggle.active {
+  background: var(--actual);
+  border-color: var(--actual);
 }
 
 .calendar-body {
@@ -678,6 +822,15 @@ body {
 .cell-event-title {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.cell-event.tracked {
+  background: rgba(52, 168, 83, 0.18);
+  border-left-color: var(--actual);
+}
+
+.cell-event.tracked:hover {
+  background: rgba(52, 168, 83, 0.3);
 }
 
 .cell-more {
@@ -811,6 +964,48 @@ body {
   bottom: 0;
   height: 7px;
   cursor: ns-resize;
+}
+
+/* Read-only "actual" blocks from tracked time entries. */
+.event.tracked {
+  background: rgba(52, 168, 83, 0.8);
+  cursor: default;
+}
+
+/* Planned/Actual lane split when the "Actual" toggle is on. */
+.lane-headers {
+  position: sticky;
+  top: 0;
+  z-index: 7;
+  display: flex;
+  margin-left: 56px;
+  background: #1e1e20;
+  border-bottom: 1px solid var(--border);
+}
+
+.lane-label {
+  flex: 1;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  padding: 6px 0;
+}
+
+.lane-label.actual {
+  color: var(--actual);
+}
+
+.lane-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(4px + (100% - 16px) * 0.5);
+  width: 0;
+  border-left: 1px dashed var(--border);
+  pointer-events: none;
 }
 
 /* Dashed placeholder for the event being created/edited in the side panel. */

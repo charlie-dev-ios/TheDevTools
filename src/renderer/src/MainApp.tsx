@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react'
 import CalendarView from './calendar/CalendarView'
 import SnippetEditor from './components/SnippetEditor'
+import TimeTrackingView from './timetracking/TimeTrackingView'
 import TodoView from './todo/TodoView'
 import type { Snippet } from './types'
 
-type View = 'calendar' | 'todos' | 'history' | 'snippets'
+type View = 'calendar' | 'todos' | 'tracking' | 'history' | 'snippets'
 
 const NAV: { id: View; label: string; icon: string }[] = [
   { id: 'calendar', label: 'Calendar', icon: '📅' },
   { id: 'todos', label: 'Todos', icon: '✅' },
+  { id: 'tracking', label: 'Time Tracking', icon: '⏱️' },
   { id: 'history', label: 'Clipboard History', icon: '📋' },
   { id: 'snippets', label: 'Snippets', icon: '✂️' }
 ]
@@ -47,6 +49,10 @@ export default function MainApp(): JSX.Element {
         {view === 'todos' && <TodoView />}
         {view === 'history' && <HistoryPanel onToast={setToast} />}
         {view === 'snippets' && <SnippetsPanel onToast={setToast} />}
+        {/* Kept mounted so a running timer survives tab switches. */}
+        <div className="tracking-host" style={{ display: view === 'tracking' ? undefined : 'none' }}>
+          <TimeTrackingView />
+        </div>
       </section>
 
       {toast && <div className="toast">{toast}</div>}

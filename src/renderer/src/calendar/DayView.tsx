@@ -14,6 +14,12 @@ import {
 interface Props {
   date: Date
   events: CalendarEvent[]
+  /**
+   * Tracked time entries shown as read-only "actual" blocks. When set (even
+   * empty), the day splits into a planned lane (left) and an actual lane
+   * (right); when undefined, planned events use the full width.
+   */
+  tracked?: CalendarEvent[]
   /** Working copy being edited in the side panel, shown as a dashed block. */
   draft: CalendarEvent | null
   hourHeight: number
@@ -110,6 +116,7 @@ function layoutEvents(items: Positioned[], minMin: number): Laid[] {
 export default function DayView({
   date,
   events,
+  tracked,
   draft,
   hourHeight,
   onHourHeightChange,
@@ -289,7 +296,12 @@ export default function DayView({
   // The pixel minimum height converted to minutes at the current zoom.
   const minVisualMin = (MIN_EVENT_PX / hourHeight) * 60
 
+  // Actuals get their own lane on the right; planned events keep the left.
+  const actualLane = tracked != null
+
   // Apply live drag positions, then lay overlapping events out side by side.
+  // Planned and tracked blocks are laid out independently, each within its
+  // own lane, so overlap columns never mix the two kinds.
   const laidEvents = layoutEvents(
     dayEvents.map((event) => {
       const live = drag && drag.kind === 'event' && drag.id === event.id
@@ -301,28 +313,50 @@ export default function DayView({
     }),
     minVisualMin
   )
+  const laidTracked = layoutEvents(
+    (tracked ?? [])
+      .filter((e) => isSameDay(new Date(e.start), date))
+      .map((event) => ({
+        event,
+        startMin: minutesSinceMidnight(new Date(event.start)),
+        endMin: minutesSinceMidnight(new Date(event.end))
+      })),
+    minVisualMin
+  )
 
   function renderBlock(
     { event, startMin, endMin, col, cols }: Laid,
-    kind: 'event' | 'draft'
+    kind: 'event' | 'draft' | 'tracked'
   ): JSX.Element {
-    const live = drag && drag.kind === kind && drag.id === event.id
+    // null for read-only tracked blocks, which can't be dragged or resized.
+    const dragKind = kind === 'tracked' ? null : kind
+    const readOnly = dragKind === null
+    const live = dragKind && drag && drag.kind === dragKind && drag.id === event.id
     // The top edge sits exactly at the start time; the height never drops
     // below the pixel minimum, so short events' bottom edge may overshoot.
     const top = minToTop(startMin)
     const height = Math.max(((endMin - startMin) / 60) * hourHeight, MIN_EVENT_PX)
     // 4px inset on the left, 12px on the right, 2px gutter between columns.
-    const left = `calc(4px + (100% - 16px) * ${col} / ${cols})`
-    const width = `calc((100% - 16px) / ${cols}${cols > 1 ? ' - 2px' : ''})`
+    // With the actual lane on, planned/draft blocks use the left half of the
+    // usable width and tracked blocks the right half (inset past the divider).
+    const laneStart = actualLane && readOnly ? 0.5 : 0
+    const laneSpan = actualLane ? 0.5 : 1
+    const inset = laneStart > 0 ? 3 : 0
+    const left = `calc(4px + ${inset}px + (100% - 16px) * ${laneStart + (laneSpan * col) / cols})`
+    const width = `calc((100% - 16px) * ${laneSpan / cols} - ${2 + inset}px)`
     const classes = ['event']
     if (kind === 'draft') classes.push('draft')
+    if (readOnly) classes.push('tracked')
     if (live) classes.push('dragging')
     return (
       <div
         key={kind === 'draft' ? 'draft' : event.id}
         className={classes.join(' ')}
         style={{ top, height, left, width }}
-        onPointerDown={(e) => beginDrag(e, event, 'move', kind)}
+        onPointerDown={(e) => {
+          if (dragKind) beginDrag(e, event, 'move', dragKind)
+          else e.stopPropagation()
+        }}
         onClick={(e) => {
           e.stopPropagation()
           if (kind === 'event' && !draggedRef.current) onSelect(event)
@@ -337,13 +371,24 @@ export default function DayView({
           </span>
         </div>
         {event.description && <div className="event-desc">{event.description}</div>}
-        <div className="event-resize" onPointerDown={(e) => beginDrag(e, event, 'resize', kind)} />
+        {dragKind && (
+          <div
+            className="event-resize"
+            onPointerDown={(e) => beginDrag(e, event, 'resize', dragKind)}
+          />
+        )}
       </div>
     )
   }
 
   return (
     <div className="dayview" ref={containerRef}>
+      {actualLane && (
+        <div className="lane-headers">
+          <span className="lane-label">Planned</span>
+          <span className="lane-label actual">Actual</span>
+        </div>
+      )}
       <div
         className="dayview-grid"
         ref={gridRef}
@@ -356,7 +401,10 @@ export default function DayView({
           </div>
         ))}
 
+        {actualLane && <div className="lane-divider" />}
+
         {laidEvents.map((laid) => renderBlock(laid, 'event'))}
+        {laidTracked.map((laid) => renderBlock(laid, 'tracked'))}
 
         {draftOnDay &&
           renderBlock(

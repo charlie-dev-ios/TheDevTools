@@ -18,6 +18,18 @@ export interface Todo {
   completed: boolean
 }
 
+export interface TimeEntry {
+  id: string
+  /** Task name being tracked (free text or picked from the todo autocomplete). */
+  task: string
+  /** ISO datetime when tracking started. */
+  start: string
+  /** ISO datetime when tracking stopped. */
+  end: string
+  /** Actively tracked seconds (paused time excluded). */
+  seconds: number
+}
+
 export interface CalendarEvent {
   id: string
   title: string
