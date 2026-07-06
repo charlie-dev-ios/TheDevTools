@@ -1123,6 +1123,11 @@ body {
   gap: 12px;
 }
 
+.field-error {
+  color: #ff5a5f;
+  font-size: 12px;
+}
+
 .modal input,
 .modal select,
 .modal textarea {

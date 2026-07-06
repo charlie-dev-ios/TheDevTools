@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { TimeEntry, Todo } from '../types'
-import { formatTime, toDateInput } from '../calendar/date-utils'
+import { formatTime, fromDateTimeInputs, toDateInput, toTimeInput } from '../calendar/date-utils'
 
 type TimerStatus = 'idle' | 'running' | 'paused'
 
@@ -35,6 +35,7 @@ export default function TimeTrackingView(): JSX.Element {
   const [segmentStart, setSegmentStart] = useState<Date | null>(null)
   const [now, setNow] = useState<Date>(() => new Date())
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [addingEntry, setAddingEntry] = useState(false)
 
   useEffect(() => {
     window.api.getTimeEntries().then(setEntries)
@@ -125,6 +126,19 @@ export default function TimeTrackingView(): JSX.Element {
     await persist(entries.filter((e) => e.id !== id))
   }
 
+  // Manual entries are independent of the timer, so they can be added while it runs.
+  async function addManual(draft: { task: string; start: Date; end: Date }): Promise<void> {
+    const entry: TimeEntry = {
+      id: crypto.randomUUID(),
+      task: draft.task,
+      start: draft.start.toISOString(),
+      end: draft.end.toISOString(),
+      seconds: Math.round((draft.end.getTime() - draft.start.getTime()) / 1000)
+    }
+    await persist([entry, ...entries])
+    setAddingEntry(false)
+  }
+
   const sorted = useMemo(
     () => [...entries].sort((a, b) => b.start.localeCompare(a.start)),
     [entries]
@@ -136,6 +150,9 @@ export default function TimeTrackingView(): JSX.Element {
     <div className="panel">
       <header className="panel-header">
         <h2 className="panel-title">Time Tracking</h2>
+        <button className="link-btn" onClick={() => setAddingEntry(true)}>
+          + Add entry
+        </button>
       </header>
 
       <div className="timer-card">
@@ -237,6 +254,76 @@ export default function TimeTrackingView(): JSX.Element {
           ))}
         </ul>
       )}
+
+      {addingEntry && (
+        <ManualEntryModal onSave={addManual} onCancel={() => setAddingEntry(false)} />
+      )}
+    </div>
+  )
+}
+
+function ManualEntryModal({
+  onSave,
+  onCancel
+}: {
+  onSave: (draft: { task: string; start: Date; end: Date }) => void
+  onCancel: () => void
+}): JSX.Element {
+  const [task, setTask] = useState('')
+  const [date, setDate] = useState(() => toDateInput(new Date()))
+  // Default to the past hour so the fields land near what was just worked on.
+  const [startTime, setStartTime] = useState(() => toTimeInput(new Date(Date.now() - 3600_000)))
+  const [endTime, setEndTime] = useState(() => toTimeInput(new Date()))
+
+  const start = date && startTime ? fromDateTimeInputs(date, startTime) : null
+  const end = date && endTime ? fromDateTimeInputs(date, endTime) : null
+  const valid = task.trim().length > 0 && start !== null && end !== null && end > start
+
+  function submit(e: React.FormEvent): void {
+    e.preventDefault()
+    if (!valid || !start || !end) return
+    onSave({ task: task.trim(), start, end })
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onCancel}>
+      <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
+        <div className="modal-heading">Add time entry</div>
+        <label className="field">
+          Task
+          <input
+            autoFocus
+            value={task}
+            placeholder="What did you work on?"
+            onChange={(e) => setTask(e.target.value)}
+          />
+        </label>
+        <div className="field-row">
+          <label className="field">
+            Date
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </label>
+          <label className="field">
+            Start
+            <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+          </label>
+          <label className="field">
+            End
+            <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+          </label>
+        </div>
+        {start && end && end <= start && (
+          <div className="field-error">End time must be after start time.</div>
+        )}
+        <div className="modal-actions">
+          <button type="submit" className="btn primary" disabled={!valid}>
+            Add
+          </button>
+          <button type="button" className="btn" onClick={onCancel}>
+            Cancel
+          </button>
+        </div>
+      </form>
     </div>
   )
 }
