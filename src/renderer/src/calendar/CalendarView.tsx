@@ -9,10 +9,15 @@ import { HOUR_HEIGHT, addDays, addMonths, dayTitle, monthTitle } from './date-ut
 type Mode = 'month' | 'day'
 
 const MODE_STORAGE_KEY = 'calendar:mode'
+const ACTUALS_STORAGE_KEY = 'calendar:showActuals'
 const DEFAULT_EVENT_MINUTES = 30
 
 function loadInitialMode(): Mode {
   return localStorage.getItem(MODE_STORAGE_KEY) === 'day' ? 'day' : 'month'
+}
+
+function loadInitialShowActuals(): boolean {
+  return localStorage.getItem(ACTUALS_STORAGE_KEY) === 'true'
 }
 
 interface Editing {
@@ -29,7 +34,7 @@ export default function CalendarView(): JSX.Element {
   const [draft, setDraft] = useState<Editing | null>(null)
   const [hourHeight, setHourHeight] = useState(HOUR_HEIGHT)
   // "Actual" toggle: overlay tracked time entries on the calendar.
-  const [showActuals, setShowActuals] = useState(false)
+  const [showActuals, setShowActuals] = useState<boolean>(loadInitialShowActuals)
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([])
 
   useEffect(() => {
@@ -40,6 +45,11 @@ export default function CalendarView(): JSX.Element {
   useEffect(() => {
     localStorage.setItem(MODE_STORAGE_KEY, mode)
   }, [mode])
+
+  // Remember the Actual toggle so it survives tab switches and restarts.
+  useEffect(() => {
+    localStorage.setItem(ACTUALS_STORAGE_KEY, String(showActuals))
+  }, [showActuals])
 
   // Refetch on every toggle-on so newly stopped timers show up.
   useEffect(() => {

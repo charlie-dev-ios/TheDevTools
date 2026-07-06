@@ -1,4 +1,5 @@
 import { app } from 'electron'
+import { randomUUID } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
@@ -26,7 +27,7 @@ export interface Todo {
   title: string
   /** Due date as 'YYYY-MM-DD'. */
   due: string
-  /** How the todo repeats. Completing a repeating todo queues the next occurrence. */
+  /** How the todo repeats. The next occurrence is created on the first fetch of its day. */
   repeat: TodoRepeat
   /** Weekdays the todo repeats on (0=Sun … 6=Sat) when repeat === 'weekdays'. */
   repeatDays?: number[]
@@ -137,7 +138,76 @@ export function saveEvents(events: CalendarEvent[]): void {
   persist()
 }
 
+function toDateInput(date: Date): string {
+  const pad = (n: number): string => n.toString().padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+/** The due date of the occurrence after `due` for a repeating todo. */
+function nextDue(due: string, repeat: TodoRepeat, repeatDays?: number[]): string {
+  const [y, m, d] = due.split('-').map(Number)
+  if (repeat === 'daily') return toDateInput(new Date(y, m - 1, d + 1))
+  if (repeat === 'weekly') return toDateInput(new Date(y, m - 1, d + 7))
+  if (repeat === 'weekdays') {
+    // The first day after `due` that falls on one of the selected weekdays.
+    const days = repeatDays ?? []
+    for (let i = 1; i <= 7; i++) {
+      const candidate = new Date(y, m - 1, d + i)
+      if (days.includes(candidate.getDay())) return toDateInput(candidate)
+    }
+    return toDateInput(new Date(y, m - 1, d + 7))
+  }
+  // Monthly: clamp to the last day of the next month (e.g. Jan 31 → Feb 28).
+  const lastOfNextMonth = new Date(y, m + 1, 0).getDate()
+  return toDateInput(new Date(y, m, Math.min(d, lastOfNextMonth)))
+}
+
+function seriesKey(t: Todo): string {
+  return `${t.title}|${t.repeat}|${(t.repeatDays ?? []).join(',')}`
+}
+
+/**
+ * Create the current occurrence of each repeating todo series whose occurrences
+ * are all completed and whose next due date has arrived. Idempotent: a series
+ * with a pending (uncompleted) occurrence is left alone, so this can run on
+ * every fetch and only the first one of the day creates anything.
+ */
+function rollForwardRepeats(): void {
+  const today = toDateInput(new Date())
+  const series = new Map<string, Todo[]>()
+  for (const t of data.todos) {
+    if (t.repeat === 'none') continue
+    const key = seriesKey(t)
+    const group = series.get(key)
+    if (group) group.push(t)
+    else series.set(key, [t])
+  }
+
+  let changed = false
+  for (const group of series.values()) {
+    if (group.some((t) => !t.completed)) continue
+    const latest = group.reduce((a, b) => (a.due >= b.due ? a : b))
+    let due = nextDue(latest.due, latest.repeat, latest.repeatDays)
+    if (due > today) continue
+    // Skip occurrences missed while the app was closed; keep only the latest.
+    while (nextDue(due, latest.repeat, latest.repeatDays) <= today) {
+      due = nextDue(due, latest.repeat, latest.repeatDays)
+    }
+    data.todos.push({
+      id: randomUUID(),
+      title: latest.title,
+      due,
+      repeat: latest.repeat,
+      repeatDays: latest.repeatDays,
+      completed: false
+    })
+    changed = true
+  }
+  if (changed) persist()
+}
+
 export function getTodos(): Todo[] {
+  rollForwardRepeats()
   return data.todos
 }
 
