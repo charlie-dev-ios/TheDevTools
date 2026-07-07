@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { TimeEntry, Todo } from '../types'
-import { formatTime, fromDateTimeInputs, toDateInput, toTimeInput } from '../calendar/date-utils'
+import { formatTime, toDateInput } from '../calendar/date-utils'
+import ManualEntryModal from './ManualEntryModal'
 
 type TimerStatus = 'idle' | 'running' | 'paused'
 
@@ -23,7 +24,7 @@ function formatEntryDate(iso: string): string {
   })
 }
 
-export default function TimeTrackingView(): JSX.Element {
+export default function TimeTrackingView({ active = true }: { active?: boolean }): JSX.Element {
   const [entries, setEntries] = useState<TimeEntry[]>([])
   const [todos, setTodos] = useState<Todo[]>([])
   const [task, setTask] = useState('')
@@ -37,10 +38,14 @@ export default function TimeTrackingView(): JSX.Element {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [addingEntry, setAddingEntry] = useState(false)
 
+  // This view stays mounted in the background (so a running timer survives tab
+  // switches), and the Calendar tab can also record entries. Re-fetch whenever
+  // the tab becomes visible so those show up.
   useEffect(() => {
+    if (!active) return
     window.api.getTimeEntries().then(setEntries)
     window.api.getTodos().then(setTodos)
-  }, [])
+  }, [active])
 
   // Tick every second while running so the display stays live.
   useEffect(() => {
@@ -71,7 +76,12 @@ export default function TimeTrackingView(): JSX.Element {
       .slice(0, MAX_SUGGESTIONS)
   }, [todos, task])
 
-  async function persist(next: TimeEntry[]): Promise<void> {
+  // Entries are also written from the Calendar tab's Actual lane, so apply
+  // changes to a fresh copy instead of trusting the local one.
+  async function mutateEntries(
+    change: (current: TimeEntry[]) => TimeEntry[]
+  ): Promise<void> {
+    const next = change(await window.api.getTimeEntries())
     setEntries(next)
     await window.api.saveTimeEntries(next)
   }
@@ -114,7 +124,7 @@ export default function TimeTrackingView(): JSX.Element {
       end: end.toISOString(),
       seconds: Math.round(total)
     }
-    void persist([entry, ...entries])
+    void mutateEntries((current) => [entry, ...current])
     setStatus('idle')
     setStartedAt(null)
     setSegmentStart(null)
@@ -123,7 +133,7 @@ export default function TimeTrackingView(): JSX.Element {
   }
 
   async function remove(id: string): Promise<void> {
-    await persist(entries.filter((e) => e.id !== id))
+    await mutateEntries((current) => current.filter((e) => e.id !== id))
   }
 
   // Manual entries are independent of the timer, so they can be added while it runs.
@@ -135,7 +145,7 @@ export default function TimeTrackingView(): JSX.Element {
       end: draft.end.toISOString(),
       seconds: Math.round((draft.end.getTime() - draft.start.getTime()) / 1000)
     }
-    await persist([entry, ...entries])
+    await mutateEntries((current) => [entry, ...current])
     setAddingEntry(false)
   }
 
@@ -258,72 +268,6 @@ export default function TimeTrackingView(): JSX.Element {
       {addingEntry && (
         <ManualEntryModal onSave={addManual} onCancel={() => setAddingEntry(false)} />
       )}
-    </div>
-  )
-}
-
-function ManualEntryModal({
-  onSave,
-  onCancel
-}: {
-  onSave: (draft: { task: string; start: Date; end: Date }) => void
-  onCancel: () => void
-}): JSX.Element {
-  const [task, setTask] = useState('')
-  const [date, setDate] = useState(() => toDateInput(new Date()))
-  // Default to the past hour so the fields land near what was just worked on.
-  const [startTime, setStartTime] = useState(() => toTimeInput(new Date(Date.now() - 3600_000)))
-  const [endTime, setEndTime] = useState(() => toTimeInput(new Date()))
-
-  const start = date && startTime ? fromDateTimeInputs(date, startTime) : null
-  const end = date && endTime ? fromDateTimeInputs(date, endTime) : null
-  const valid = task.trim().length > 0 && start !== null && end !== null && end > start
-
-  function submit(e: React.FormEvent): void {
-    e.preventDefault()
-    if (!valid || !start || !end) return
-    onSave({ task: task.trim(), start, end })
-  }
-
-  return (
-    <div className="modal-backdrop" onClick={onCancel}>
-      <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
-        <div className="modal-heading">Add time entry</div>
-        <label className="field">
-          Task
-          <input
-            autoFocus
-            value={task}
-            placeholder="What did you work on?"
-            onChange={(e) => setTask(e.target.value)}
-          />
-        </label>
-        <div className="field-row">
-          <label className="field">
-            Date
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          </label>
-          <label className="field">
-            Start
-            <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
-          </label>
-          <label className="field">
-            End
-            <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
-          </label>
-        </div>
-        {start && end && end <= start && (
-          <div className="field-error">End time must be after start time.</div>
-        )}
-        <div className="modal-actions">
-          <button type="submit" className="btn primary" disabled={!valid}>
-            Add
-          </button>
-          <button type="button" className="btn" onClick={onCancel}>
-            Cancel
-          </button>
-        </div>
-      </form>
     </div>
   )
 }

@@ -689,6 +689,12 @@ body {
   margin-left: 10px;
 }
 
+/* "+ Actual" button, shown while the Actual overlay is on. */
+.btn.new-actual {
+  background: var(--actual);
+  color: #fff;
+}
+
 /* Standalone "⏱ Actual" toggle next to the Month/Day segments. */
 .seg.actual-toggle {
   border-radius: 7px;
