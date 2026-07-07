@@ -51,7 +51,7 @@ export default function MainApp(): JSX.Element {
         {view === 'snippets' && <SnippetsPanel onToast={setToast} />}
         {/* Kept mounted so a running timer survives tab switches. */}
         <div className="tracking-host" style={{ display: view === 'tracking' ? undefined : 'none' }}>
-          <TimeTrackingView />
+          <TimeTrackingView active={view === 'tracking'} />
         </div>
       </section>
 

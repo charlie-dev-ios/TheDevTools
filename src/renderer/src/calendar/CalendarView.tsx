@@ -4,7 +4,8 @@ import MonthView from './MonthView'
 import DayView from './DayView'
 import EventModal from './EventModal'
 import EventPanel from './EventPanel'
-import { HOUR_HEIGHT, addDays, addMonths, dayTitle, monthTitle } from './date-utils'
+import ManualEntryModal from '../timetracking/ManualEntryModal'
+import { HOUR_HEIGHT, addDays, addMinutes, addMonths, dayTitle, monthTitle } from './date-utils'
 
 type Mode = 'month' | 'day'
 
@@ -36,6 +37,8 @@ export default function CalendarView(): JSX.Element {
   // "Actual" toggle: overlay tracked time entries on the calendar.
   const [showActuals, setShowActuals] = useState<boolean>(loadInitialShowActuals)
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([])
+  // Prefill for the manual time-entry modal, null while closed.
+  const [addingActual, setAddingActual] = useState<{ start: Date; end: Date } | null>(null)
 
   useEffect(() => {
     window.api.getEvents().then(setEvents)
@@ -72,6 +75,23 @@ export default function CalendarView(): JSX.Element {
   async function persist(next: CalendarEvent[]): Promise<void> {
     setEvents(next)
     await window.api.saveEvents(next)
+  }
+
+  // Record a time entry from the calendar, same shape the timer produces.
+  // Refetch first so entries tracked since the toggle-on aren't overwritten.
+  async function addActual(draft: { task: string; start: Date; end: Date }): Promise<void> {
+    const current = await window.api.getTimeEntries()
+    const entry: TimeEntry = {
+      id: crypto.randomUUID(),
+      task: draft.task,
+      start: draft.start.toISOString(),
+      end: draft.end.toISOString(),
+      seconds: Math.round((draft.end.getTime() - draft.start.getTime()) / 1000)
+    }
+    const next = [entry, ...current]
+    setTimeEntries(next)
+    await window.api.saveTimeEntries(next)
+    setAddingActual(null)
   }
 
   function upsert(event: CalendarEvent): void {
@@ -162,6 +182,19 @@ export default function CalendarView(): JSX.Element {
           >
             + Event
           </button>
+          {showActuals && (
+            <button
+              className="btn new-event new-actual"
+              title="Record a time entry"
+              onClick={() => {
+                const start = new Date(cursor)
+                start.setHours(9, 0, 0, 0)
+                setAddingActual({ start, end: addMinutes(start, DEFAULT_EVENT_MINUTES) })
+              }}
+            >
+              + Actual
+            </button>
+          )}
         </div>
       </header>
 
@@ -190,6 +223,9 @@ export default function CalendarView(): JSX.Element {
               onUpdate={upsert}
               onDraftChange={(event) => setDraft((d) => (d ? { ...d, event } : d))}
               onCreateAt={(start) => newEventAt(start)}
+              onCreateActualAt={(start) =>
+                setAddingActual({ start, end: addMinutes(start, DEFAULT_EVENT_MINUTES) })
+              }
               onSelect={(event) => setDraft({ event: { ...event }, isNew: false })}
             />
             {draft && (
@@ -208,6 +244,15 @@ export default function CalendarView(): JSX.Element {
           </>
         )}
       </div>
+
+      {addingActual && (
+        <ManualEntryModal
+          initialStart={addingActual.start}
+          initialEnd={addingActual.end}
+          onSave={addActual}
+          onCancel={() => setAddingActual(null)}
+        />
+      )}
 
       {editing && (
         <EventModal
