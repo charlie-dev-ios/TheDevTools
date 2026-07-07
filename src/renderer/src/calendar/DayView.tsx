@@ -30,6 +30,8 @@ interface Props {
   /** Called instead of onCreateAt when the actual lane is clicked. */
   onCreateActualAt?: (start: Date) => void
   onSelect: (event: CalendarEvent) => void
+  /** Called when a tracked "actual" block is clicked (to edit its entry). */
+  onSelectTracked?: (event: CalendarEvent) => void
 }
 
 interface DragState {
@@ -126,7 +128,8 @@ export default function DayView({
   onDraftChange,
   onCreateAt,
   onCreateActualAt,
-  onSelect
+  onSelect,
+  onSelectTracked
 }: Props): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
@@ -373,7 +376,9 @@ export default function DayView({
         }}
         onClick={(e) => {
           e.stopPropagation()
-          if (kind === 'event' && !draggedRef.current) onSelect(event)
+          if (draggedRef.current) return
+          if (kind === 'event') onSelect(event)
+          else if (kind === 'tracked') onSelectTracked?.(event)
         }}
       >
         <div className="event-header">

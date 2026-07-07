@@ -126,6 +126,14 @@ body {
   color: var(--fg);
 }
 
+.row-action:disabled,
+.row:hover .row-action:disabled {
+  cursor: default;
+  color: var(--muted);
+  background: transparent;
+  opacity: 0.35;
+}
+
 .empty {
   color: var(--muted);
   text-align: center;
@@ -1079,10 +1087,10 @@ body {
   cursor: ns-resize;
 }
 
-/* Read-only "actual" blocks from tracked time entries. */
+/* "Actual" blocks from tracked time entries; click to edit the entry. */
 .event.tracked {
   background: rgba(52, 168, 83, 0.8);
-  cursor: default;
+  cursor: pointer;
 }
 
 /* Planned/Actual lane split when the "Actual" toggle is on. */

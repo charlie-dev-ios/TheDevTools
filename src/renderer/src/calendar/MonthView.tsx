@@ -10,10 +10,12 @@ import {
 interface Props {
   cursor: Date
   events: CalendarEvent[]
-  /** Tracked time entries shown as read-only "actual" chips. */
+  /** Tracked time entries shown as "actual" chips. */
   tracked?: CalendarEvent[]
   onOpenDay: (day: Date) => void
   onSelect: (event: CalendarEvent) => void
+  /** Called when a tracked "actual" chip is clicked (to edit its entry). */
+  onSelectTracked?: (event: CalendarEvent) => void
 }
 
 const MAX_PER_CELL = 3
@@ -23,7 +25,8 @@ export default function MonthView({
   events,
   tracked = [],
   onOpenDay,
-  onSelect
+  onSelect,
+  onSelectTracked
 }: Props): JSX.Element {
   const days = monthMatrix(cursor)
   const today = new Date()
@@ -67,9 +70,11 @@ export default function MonthView({
                     title={event.description ? `${event.title}\n${event.description}` : event.title}
                     onClick={(e) => {
                       e.stopPropagation()
-                      // Tracked chips are read-only; open the day view instead.
-                      if (isTracked) onOpenDay(day)
-                      else onSelect(event)
+                      // Tracked chips edit their time entry; without a
+                      // handler, fall back to opening the day view.
+                      if (!isTracked) onSelect(event)
+                      else if (onSelectTracked) onSelectTracked(event)
+                      else onOpenDay(day)
                     }}
                   >
                     <span className="cell-event-time">

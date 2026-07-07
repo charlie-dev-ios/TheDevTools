@@ -1,24 +1,37 @@
 import { useState } from 'react'
 import { fromDateTimeInputs, toDateInput, toTimeInput } from '../calendar/date-utils'
+import type { TimeEntryDraft } from './entry-utils'
 
 interface Props {
+  /** Switches the copy from adding a new entry to editing an existing one. */
+  editing?: boolean
+  /** Prefill for the task field. */
+  initialTask?: string
+  /** Prefill for the subtask field. */
+  initialSubtask?: string
   /** Prefill for the start field. Defaults to one hour ago. */
   initialStart?: Date
   /** Prefill for the end field. Defaults to now. */
   initialEnd?: Date
-  onSave: (draft: { task: string; subtask?: string; start: Date; end: Date }) => void
+  onSave: (draft: TimeEntryDraft) => void
+  /** When provided, a Delete button is shown. */
+  onDelete?: () => void
   onCancel: () => void
 }
 
-/** Modal for recording a time entry by hand, independent of the timer. */
+/** Modal for recording or editing a time entry by hand, independent of the timer. */
 export default function ManualEntryModal({
+  editing = false,
+  initialTask,
+  initialSubtask,
   initialStart,
   initialEnd,
   onSave,
+  onDelete,
   onCancel
 }: Props): JSX.Element {
-  const [task, setTask] = useState('')
-  const [subtask, setSubtask] = useState('')
+  const [task, setTask] = useState(initialTask ?? '')
+  const [subtask, setSubtask] = useState(initialSubtask ?? '')
   const [date, setDate] = useState(() => toDateInput(initialStart ?? new Date()))
   // Default to the past hour so the fields land near what was just worked on.
   const [startTime, setStartTime] = useState(() =>
@@ -39,7 +52,7 @@ export default function ManualEntryModal({
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
-        <div className="modal-heading">Add time entry</div>
+        <div className="modal-heading">{editing ? 'Edit time entry' : 'Add time entry'}</div>
         <label className="field">
           Task
           <input
@@ -76,8 +89,13 @@ export default function ManualEntryModal({
         )}
         <div className="modal-actions">
           <button type="submit" className="btn primary" disabled={!valid}>
-            Add
+            {editing ? 'Save' : 'Add'}
           </button>
+          {onDelete && (
+            <button type="button" className="btn danger" onClick={onDelete}>
+              Delete
+            </button>
+          )}
           <button type="button" className="btn" onClick={onCancel}>
             Cancel
           </button>
