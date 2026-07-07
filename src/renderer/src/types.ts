@@ -6,6 +6,12 @@ export interface Snippet {
 
 export type TodoRepeat = 'none' | 'daily' | 'weekly' | 'monthly' | 'weekdays'
 
+export interface Subtask {
+  id: string
+  title: string
+  completed: boolean
+}
+
 export interface Todo {
   id: string
   title: string
@@ -16,12 +22,16 @@ export interface Todo {
   /** Weekdays the todo repeats on (0=Sun … 6=Sat) when repeat === 'weekdays'. */
   repeatDays?: number[]
   completed: boolean
+  /** Optional checklist of smaller steps under this todo. */
+  subtasks?: Subtask[]
 }
 
 export interface TimeEntry {
   id: string
   /** Task name being tracked (free text or picked from the todo autocomplete). */
   task: string
+  /** Optional subtask being tracked (free text or picked from the todo's subtasks). */
+  subtask?: string
   /** ISO datetime when tracking started. */
   start: string
   /** ISO datetime when tracking stopped. */

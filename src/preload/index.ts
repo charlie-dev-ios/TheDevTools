@@ -14,6 +14,12 @@ export interface CalendarEvent {
   end: string
 }
 
+export interface Subtask {
+  id: string
+  title: string
+  completed: boolean
+}
+
 export interface Todo {
   id: string
   title: string
@@ -21,11 +27,13 @@ export interface Todo {
   repeat: 'none' | 'daily' | 'weekly' | 'monthly' | 'weekdays'
   repeatDays?: number[]
   completed: boolean
+  subtasks?: Subtask[]
 }
 
 export interface TimeEntry {
   id: string
   task: string
+  subtask?: string
   start: string
   end: string
   seconds: number

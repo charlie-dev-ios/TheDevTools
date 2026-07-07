@@ -22,6 +22,12 @@ export interface CalendarEvent {
 
 export type TodoRepeat = 'none' | 'daily' | 'weekly' | 'monthly' | 'weekdays'
 
+export interface Subtask {
+  id: string
+  title: string
+  completed: boolean
+}
+
 export interface Todo {
   id: string
   title: string
@@ -32,12 +38,16 @@ export interface Todo {
   /** Weekdays the todo repeats on (0=Sun … 6=Sat) when repeat === 'weekdays'. */
   repeatDays?: number[]
   completed: boolean
+  /** Optional checklist of smaller steps under this todo. */
+  subtasks?: Subtask[]
 }
 
 export interface TimeEntry {
   id: string
   /** Task name being tracked. */
   task: string
+  /** Optional subtask being tracked. */
+  subtask?: string
   /** ISO datetime when tracking started. */
   start: string
   /** ISO datetime when tracking stopped. */
@@ -199,7 +209,13 @@ function rollForwardRepeats(): void {
       due,
       repeat: latest.repeat,
       repeatDays: latest.repeatDays,
-      completed: false
+      completed: false,
+      // Fresh copy of the checklist, unchecked, for the new occurrence.
+      subtasks: latest.subtasks?.map((s) => ({
+        id: randomUUID(),
+        title: s.title,
+        completed: false
+      }))
     })
     changed = true
   }

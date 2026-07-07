@@ -6,7 +6,7 @@ interface Props {
   initialStart?: Date
   /** Prefill for the end field. Defaults to now. */
   initialEnd?: Date
-  onSave: (draft: { task: string; start: Date; end: Date }) => void
+  onSave: (draft: { task: string; subtask?: string; start: Date; end: Date }) => void
   onCancel: () => void
 }
 
@@ -18,6 +18,7 @@ export default function ManualEntryModal({
   onCancel
 }: Props): JSX.Element {
   const [task, setTask] = useState('')
+  const [subtask, setSubtask] = useState('')
   const [date, setDate] = useState(() => toDateInput(initialStart ?? new Date()))
   // Default to the past hour so the fields land near what was just worked on.
   const [startTime, setStartTime] = useState(() =>
@@ -32,7 +33,7 @@ export default function ManualEntryModal({
   function submit(e: React.FormEvent): void {
     e.preventDefault()
     if (!valid || !start || !end) return
-    onSave({ task: task.trim(), start, end })
+    onSave({ task: task.trim(), subtask: subtask.trim() || undefined, start, end })
   }
 
   return (
@@ -46,6 +47,14 @@ export default function ManualEntryModal({
             value={task}
             placeholder="What did you work on?"
             onChange={(e) => setTask(e.target.value)}
+          />
+        </label>
+        <label className="field">
+          Subtask (optional)
+          <input
+            value={subtask}
+            placeholder="Which part of it?"
+            onChange={(e) => setSubtask(e.target.value)}
           />
         </label>
         <div className="field-row">

@@ -64,7 +64,7 @@ export default function CalendarView(): JSX.Element {
       showActuals
         ? timeEntries.map((e) => ({
             id: `tracked-${e.id}`,
-            title: e.task,
+            title: e.subtask ? `${e.task} › ${e.subtask}` : e.task,
             start: e.start,
             end: e.end
           }))
@@ -79,11 +79,17 @@ export default function CalendarView(): JSX.Element {
 
   // Record a time entry from the calendar, same shape the timer produces.
   // Refetch first so entries tracked since the toggle-on aren't overwritten.
-  async function addActual(draft: { task: string; start: Date; end: Date }): Promise<void> {
+  async function addActual(draft: {
+    task: string
+    subtask?: string
+    start: Date
+    end: Date
+  }): Promise<void> {
     const current = await window.api.getTimeEntries()
     const entry: TimeEntry = {
       id: crypto.randomUUID(),
       task: draft.task,
+      subtask: draft.subtask,
       start: draft.start.toISOString(),
       end: draft.end.toISOString(),
       seconds: Math.round((draft.end.getTime() - draft.start.getTime()) / 1000)

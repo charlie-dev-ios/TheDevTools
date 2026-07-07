@@ -28,6 +28,7 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
   const [entries, setEntries] = useState<TimeEntry[]>([])
   const [todos, setTodos] = useState<Todo[]>([])
   const [task, setTask] = useState('')
+  const [subtask, setSubtask] = useState('')
   const [status, setStatus] = useState<TimerStatus>('idle')
   const [startedAt, setStartedAt] = useState<Date | null>(null)
   // Seconds accumulated across finished run segments (paused time excluded).
@@ -36,6 +37,7 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
   const [segmentStart, setSegmentStart] = useState<Date | null>(null)
   const [now, setNow] = useState<Date>(() => new Date())
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [showSubtaskSuggestions, setShowSubtaskSuggestions] = useState(false)
   const [addingEntry, setAddingEntry] = useState(false)
 
   // This view stays mounted in the background (so a running timer survives tab
@@ -76,6 +78,23 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
       .slice(0, MAX_SUGGESTIONS)
   }, [todos, task])
 
+  // Incomplete subtasks of the todo whose title matches the task, matching the typed text.
+  const subtaskSuggestions = useMemo(() => {
+    const taskName = task.trim().toLowerCase()
+    const query = subtask.trim().toLowerCase()
+    if (!taskName) return []
+    const seen = new Set<string>()
+    return todos
+      .filter((t) => !t.completed && t.title.trim().toLowerCase() === taskName)
+      .flatMap((t) => t.subtasks ?? [])
+      .filter((s) => {
+        if (s.completed || !s.title.toLowerCase().includes(query) || seen.has(s.title)) return false
+        seen.add(s.title)
+        return true
+      })
+      .slice(0, MAX_SUGGESTIONS)
+  }, [todos, task, subtask])
+
   // Entries are also written from the Calendar tab's Actual lane, so apply
   // changes to a fresh copy instead of trusting the local one.
   async function mutateEntries(
@@ -95,6 +114,7 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
     setNow(t)
     setStatus('running')
     setShowSuggestions(false)
+    setShowSubtaskSuggestions(false)
   }
 
   function pause(): void {
@@ -120,6 +140,7 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
     const entry: TimeEntry = {
       id: crypto.randomUUID(),
       task: task.trim(),
+      subtask: subtask.trim() || undefined,
       start: startedAt.toISOString(),
       end: end.toISOString(),
       seconds: Math.round(total)
@@ -130,6 +151,7 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
     setSegmentStart(null)
     setAccumulated(0)
     setTask('')
+    setSubtask('')
   }
 
   async function remove(id: string): Promise<void> {
@@ -137,10 +159,16 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
   }
 
   // Manual entries are independent of the timer, so they can be added while it runs.
-  async function addManual(draft: { task: string; start: Date; end: Date }): Promise<void> {
+  async function addManual(draft: {
+    task: string
+    subtask?: string
+    start: Date
+    end: Date
+  }): Promise<void> {
     const entry: TimeEntry = {
       id: crypto.randomUUID(),
       task: draft.task,
+      subtask: draft.subtask,
       start: draft.start.toISOString(),
       end: draft.end.toISOString(),
       seconds: Math.round((draft.end.getTime() - draft.start.getTime()) / 1000)
@@ -205,6 +233,44 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
           )}
         </div>
 
+        <div className="autocomplete">
+          <input
+            className="task-input subtask-input"
+            value={subtask}
+            disabled={!idle}
+            placeholder="Subtask (optional)"
+            onChange={(e) => {
+              setSubtask(e.target.value)
+              setShowSubtaskSuggestions(true)
+            }}
+            onFocus={() => {
+              // Refresh so subtasks added on the Todos tab show up.
+              window.api.getTodos().then(setTodos)
+              setShowSubtaskSuggestions(true)
+            }}
+            onBlur={() => setShowSubtaskSuggestions(false)}
+          />
+          {idle && showSubtaskSuggestions && subtaskSuggestions.length > 0 && (
+            <ul className="suggestions">
+              {subtaskSuggestions.map((s) => (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    // Keep the input's blur from closing the list before the click lands.
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      setSubtask(s.title)
+                      setShowSubtaskSuggestions(false)
+                    }}
+                  >
+                    <span className="suggestion-title">{s.title}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         <div className={status === 'running' ? 'timer-display running' : 'timer-display'}>
           {formatDuration(elapsed)}
         </div>
@@ -235,6 +301,12 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
         {!idle && (
           <div className="timer-task">
             Tracking: <strong>{task}</strong>
+            {subtask.trim() && (
+              <>
+                {' › '}
+                <strong>{subtask.trim()}</strong>
+              </>
+            )}
             {status === 'paused' && ' (paused)'}
           </div>
         )}
@@ -249,7 +321,10 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
         <ul className="list">
           {sorted.map((e) => (
             <li key={e.id} className="row entry-row">
-              <span className="row-text">{e.task}</span>
+              <span className="row-text">
+                {e.task}
+                {e.subtask && <span className="entry-subtask"> › {e.subtask}</span>}
+              </span>
               <span className="entry-range">
                 {formatEntryDate(e.start)} · {formatTime(new Date(e.start))}–
                 {formatTime(new Date(e.end))}
