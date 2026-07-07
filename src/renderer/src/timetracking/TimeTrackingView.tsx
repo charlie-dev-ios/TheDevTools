@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { TimeEntry, Todo } from '../types'
-import { formatTime, toDateInput } from '../calendar/date-utils'
+import { formatTime } from '../calendar/date-utils'
 import ManualEntryModal from './ManualEntryModal'
 
 type TimerStatus = 'idle' | 'running' | 'paused'
@@ -60,13 +60,12 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
       ? (now.getTime() - segmentStart.getTime()) / 1000
       : 0)
 
-  // Incomplete todos due today or later, matching the typed text.
+  // Incomplete todos (overdue ones included) matching the typed text.
   const suggestions = useMemo(() => {
-    const today = toDateInput(new Date())
     const query = task.trim().toLowerCase()
     const seen = new Set<string>()
     return todos
-      .filter((t) => !t.completed && t.due >= today)
+      .filter((t) => !t.completed)
       .sort((a, b) => a.due.localeCompare(b.due) || a.title.localeCompare(b.title))
       .filter((t) => {
         if (!t.title.toLowerCase().includes(query) || seen.has(t.title)) return false
