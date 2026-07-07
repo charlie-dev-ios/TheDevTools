@@ -27,6 +27,7 @@ export default function TimeTrackingView(): JSX.Element {
   const [entries, setEntries] = useState<TimeEntry[]>([])
   const [todos, setTodos] = useState<Todo[]>([])
   const [task, setTask] = useState('')
+  const [subtask, setSubtask] = useState('')
   const [status, setStatus] = useState<TimerStatus>('idle')
   const [startedAt, setStartedAt] = useState<Date | null>(null)
   // Seconds accumulated across finished run segments (paused time excluded).
@@ -35,6 +36,7 @@ export default function TimeTrackingView(): JSX.Element {
   const [segmentStart, setSegmentStart] = useState<Date | null>(null)
   const [now, setNow] = useState<Date>(() => new Date())
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [showSubtaskSuggestions, setShowSubtaskSuggestions] = useState(false)
 
   useEffect(() => {
     window.api.getTimeEntries().then(setEntries)
@@ -70,6 +72,23 @@ export default function TimeTrackingView(): JSX.Element {
       .slice(0, MAX_SUGGESTIONS)
   }, [todos, task])
 
+  // Incomplete subtasks of the todo whose title matches the task, matching the typed text.
+  const subtaskSuggestions = useMemo(() => {
+    const taskName = task.trim().toLowerCase()
+    const query = subtask.trim().toLowerCase()
+    if (!taskName) return []
+    const seen = new Set<string>()
+    return todos
+      .filter((t) => !t.completed && t.title.trim().toLowerCase() === taskName)
+      .flatMap((t) => t.subtasks ?? [])
+      .filter((s) => {
+        if (s.completed || !s.title.toLowerCase().includes(query) || seen.has(s.title)) return false
+        seen.add(s.title)
+        return true
+      })
+      .slice(0, MAX_SUGGESTIONS)
+  }, [todos, task, subtask])
+
   async function persist(next: TimeEntry[]): Promise<void> {
     setEntries(next)
     await window.api.saveTimeEntries(next)
@@ -84,6 +103,7 @@ export default function TimeTrackingView(): JSX.Element {
     setNow(t)
     setStatus('running')
     setShowSuggestions(false)
+    setShowSubtaskSuggestions(false)
   }
 
   function pause(): void {
@@ -109,6 +129,7 @@ export default function TimeTrackingView(): JSX.Element {
     const entry: TimeEntry = {
       id: crypto.randomUUID(),
       task: task.trim(),
+      subtask: subtask.trim() || undefined,
       start: startedAt.toISOString(),
       end: end.toISOString(),
       seconds: Math.round(total)
@@ -119,6 +140,7 @@ export default function TimeTrackingView(): JSX.Element {
     setSegmentStart(null)
     setAccumulated(0)
     setTask('')
+    setSubtask('')
   }
 
   async function remove(id: string): Promise<void> {
@@ -178,6 +200,44 @@ export default function TimeTrackingView(): JSX.Element {
           )}
         </div>
 
+        <div className="autocomplete">
+          <input
+            className="task-input subtask-input"
+            value={subtask}
+            disabled={!idle}
+            placeholder="Subtask (optional)"
+            onChange={(e) => {
+              setSubtask(e.target.value)
+              setShowSubtaskSuggestions(true)
+            }}
+            onFocus={() => {
+              // Refresh so subtasks added on the Todos tab show up.
+              window.api.getTodos().then(setTodos)
+              setShowSubtaskSuggestions(true)
+            }}
+            onBlur={() => setShowSubtaskSuggestions(false)}
+          />
+          {idle && showSubtaskSuggestions && subtaskSuggestions.length > 0 && (
+            <ul className="suggestions">
+              {subtaskSuggestions.map((s) => (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    // Keep the input's blur from closing the list before the click lands.
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      setSubtask(s.title)
+                      setShowSubtaskSuggestions(false)
+                    }}
+                  >
+                    <span className="suggestion-title">{s.title}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         <div className={status === 'running' ? 'timer-display running' : 'timer-display'}>
           {formatDuration(elapsed)}
         </div>
@@ -208,6 +268,12 @@ export default function TimeTrackingView(): JSX.Element {
         {!idle && (
           <div className="timer-task">
             Tracking: <strong>{task}</strong>
+            {subtask.trim() && (
+              <>
+                {' › '}
+                <strong>{subtask.trim()}</strong>
+              </>
+            )}
             {status === 'paused' && ' (paused)'}
           </div>
         )}
@@ -222,7 +288,10 @@ export default function TimeTrackingView(): JSX.Element {
         <ul className="list">
           {sorted.map((e) => (
             <li key={e.id} className="row entry-row">
-              <span className="row-text">{e.task}</span>
+              <span className="row-text">
+                {e.task}
+                {e.subtask && <span className="entry-subtask"> › {e.subtask}</span>}
+              </span>
               <span className="entry-range">
                 {formatEntryDate(e.start)} · {formatTime(new Date(e.start))}–
                 {formatTime(new Date(e.end))}

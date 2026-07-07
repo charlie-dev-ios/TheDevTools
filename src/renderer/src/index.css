@@ -454,6 +454,103 @@ body {
   color: #fff;
 }
 
+.todo-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.todo-progress {
+  flex-shrink: 0;
+  background: rgba(76, 139, 245, 0.16);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 11px;
+  padding: 2px 8px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.todo-subtasks {
+  list-style: none;
+  margin: 0;
+  padding: 0 12px 6px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.subtask-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  padding: 3px 0;
+}
+
+.subtask-check {
+  width: 13px;
+  height: 13px;
+}
+
+.subtask-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.subtask-row.done .subtask-title {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+/* Subtask editor inside the todo modal. */
+.subtask-editor {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.subtask-editor-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.subtask-editor-row input:not(.todo-check) {
+  flex: 1;
+  min-width: 0;
+}
+
+.subtask-editor-row .subtask-remove {
+  opacity: 1;
+  flex-shrink: 0;
+}
+
+.subtask-add {
+  display: flex;
+  gap: 8px;
+}
+
+.subtask-add input {
+  flex: 1;
+  min-width: 0;
+}
+
+.subtask-add .btn {
+  flex-shrink: 0;
+  padding: 8px 14px;
+}
+
+.subtask-add .btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .todo-section {
   display: flex;
   align-items: center;
@@ -577,6 +674,16 @@ body {
 
 .timer-task {
   text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.task-input.subtask-input {
+  font-size: 13px;
+  padding: 8px 12px;
+}
+
+.entry-subtask {
   color: var(--muted);
   font-size: 13px;
 }

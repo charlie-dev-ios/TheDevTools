@@ -61,7 +61,7 @@ export default function CalendarView(): JSX.Element {
       showActuals
         ? timeEntries.map((e) => ({
             id: `tracked-${e.id}`,
-            title: e.task,
+            title: e.subtask ? `${e.task} › ${e.subtask}` : e.task,
             start: e.start,
             end: e.end
           }))

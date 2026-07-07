@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Todo, TodoRepeat } from '../types'
+import type { Subtask, Todo, TodoRepeat } from '../types'
 import { toDateInput, WEEKDAYS } from '../calendar/date-utils'
 
 const REPEAT_OPTIONS: { value: TodoRepeat; label: string }[] = [
@@ -51,12 +51,14 @@ export default function TodoView(): JSX.Element {
     due: string
     repeat: TodoRepeat
     repeatDays?: number[]
+    subtasks: Subtask[]
   }): Promise<void> {
     const fields = {
       title: draft.title,
       due: draft.due,
       repeat: draft.repeat,
-      repeatDays: draft.repeat === 'weekdays' ? draft.repeatDays : undefined
+      repeatDays: draft.repeat === 'weekdays' ? draft.repeatDays : undefined,
+      subtasks: draft.subtasks.length > 0 ? draft.subtasks : undefined
     }
     const next = draft.id
       ? todos.map((t) => (t.id === draft.id ? { ...t, ...fields } : t))
@@ -73,6 +75,21 @@ export default function TodoView(): JSX.Element {
   // on the first fetch of the day it becomes due, not here at completion time.
   async function toggle(todo: Todo): Promise<void> {
     await update(todos.map((t) => (t.id === todo.id ? { ...t, completed: !t.completed } : t)))
+  }
+
+  async function toggleSubtask(todo: Todo, subtaskId: string): Promise<void> {
+    await update(
+      todos.map((t) =>
+        t.id === todo.id
+          ? {
+              ...t,
+              subtasks: t.subtasks?.map((s) =>
+                s.id === subtaskId ? { ...s, completed: !s.completed } : s
+              )
+            }
+          : t
+      )
+    )
   }
 
   async function clearCompleted(): Promise<void> {
@@ -112,7 +129,14 @@ export default function TodoView(): JSX.Element {
           ) : (
             <ul className="list">
               {active.map((t) => (
-                <TodoRow key={t.id} todo={t} onToggle={toggle} onEdit={setEditing} onRemove={remove} />
+                <TodoRow
+                  key={t.id}
+                  todo={t}
+                  onToggle={toggle}
+                  onToggleSubtask={toggleSubtask}
+                  onEdit={setEditing}
+                  onRemove={remove}
+                />
               ))}
             </ul>
           )}
@@ -127,7 +151,14 @@ export default function TodoView(): JSX.Element {
               </div>
               <ul className="list">
                 {completed.map((t) => (
-                  <TodoRow key={t.id} todo={t} onToggle={toggle} onEdit={setEditing} onRemove={remove} />
+                  <TodoRow
+                    key={t.id}
+                    todo={t}
+                    onToggle={toggle}
+                    onToggleSubtask={toggleSubtask}
+                    onEdit={setEditing}
+                    onRemove={remove}
+                  />
                 ))}
               </ul>
             </>
@@ -149,59 +180,89 @@ export default function TodoView(): JSX.Element {
 function TodoRow({
   todo,
   onToggle,
+  onToggleSubtask,
   onEdit,
   onRemove
 }: {
   todo: Todo
   onToggle: (todo: Todo) => void
+  onToggleSubtask: (todo: Todo, subtaskId: string) => void
   onEdit: (todo: Todo) => void
   onRemove: (id: string) => void
 }): JSX.Element {
   const status = dueStatus(todo.due)
+  const subtasks = todo.subtasks ?? []
+  const doneCount = subtasks.filter((s) => s.completed).length
   return (
-    <li className={todo.completed ? 'row todo-row done' : 'row todo-row'} onClick={() => onEdit(todo)}>
-      <input
-        type="checkbox"
-        className="todo-check"
-        checked={todo.completed}
-        title={todo.completed ? 'Mark as not done' : 'Mark as done'}
-        onClick={(e) => e.stopPropagation()}
-        onChange={() => onToggle(todo)}
-      />
-      <span className="row-text todo-title">{todo.title}</span>
-      {todo.repeat !== 'none' && (
-        <span
-          className="todo-repeat"
-          title={`Repeats: ${repeatLabel(todo.repeat, todo.repeatDays)}`}
-        >
-          🔁 {repeatLabel(todo.repeat, todo.repeatDays)}
+    <li className="todo-item">
+      <div
+        className={todo.completed ? 'row todo-row done' : 'row todo-row'}
+        onClick={() => onEdit(todo)}
+      >
+        <input
+          type="checkbox"
+          className="todo-check"
+          checked={todo.completed}
+          title={todo.completed ? 'Mark as not done' : 'Mark as done'}
+          onClick={(e) => e.stopPropagation()}
+          onChange={() => onToggle(todo)}
+        />
+        <span className="row-text todo-title">{todo.title}</span>
+        {subtasks.length > 0 && (
+          <span className="todo-progress" title={`Subtasks: ${doneCount}/${subtasks.length} done`}>
+            ☑ {doneCount}/{subtasks.length}
+          </span>
+        )}
+        {todo.repeat !== 'none' && (
+          <span
+            className="todo-repeat"
+            title={`Repeats: ${repeatLabel(todo.repeat, todo.repeatDays)}`}
+          >
+            🔁 {repeatLabel(todo.repeat, todo.repeatDays)}
+          </span>
+        )}
+        <span className={todo.completed ? 'todo-due' : `todo-due ${status}`}>
+          {status === 'today' && !todo.completed ? 'Today' : formatDue(todo.due)}
         </span>
+        <span className="row-buttons">
+          <button
+            className="row-action"
+            title="Edit"
+            onClick={(e) => {
+              e.stopPropagation()
+              onEdit(todo)
+            }}
+          >
+            ✎
+          </button>
+          <button
+            className="row-action"
+            title="Delete"
+            onClick={(e) => {
+              e.stopPropagation()
+              onRemove(todo.id)
+            }}
+          >
+            ✕
+          </button>
+        </span>
+      </div>
+      {subtasks.length > 0 && (
+        <ul className="todo-subtasks">
+          {subtasks.map((s) => (
+            <li key={s.id} className={s.completed ? 'subtask-row done' : 'subtask-row'}>
+              <input
+                type="checkbox"
+                className="todo-check subtask-check"
+                checked={s.completed}
+                title={s.completed ? 'Mark as not done' : 'Mark as done'}
+                onChange={() => onToggleSubtask(todo, s.id)}
+              />
+              <span className="subtask-title">{s.title}</span>
+            </li>
+          ))}
+        </ul>
       )}
-      <span className={todo.completed ? 'todo-due' : `todo-due ${status}`}>
-        {status === 'today' && !todo.completed ? 'Today' : formatDue(todo.due)}
-      </span>
-      <span className="row-buttons">
-        <button
-          className="row-action"
-          title="Edit"
-          onClick={(e) => {
-            e.stopPropagation()
-            onEdit(todo)
-          }}
-        >
-          ✎
-        </button>
-        <button
-          className="row-action"
-          title="Delete"
-          onClick={(e) => {
-            e.stopPropagation()
-            onRemove(todo.id)
-          }}
-        >
-          ✕
-        </button>
-      </span>
     </li>
   )
 }
@@ -218,6 +279,7 @@ function TodoModal({
     due: string
     repeat: TodoRepeat
     repeatDays?: number[]
+    subtasks: Subtask[]
   }) => void
   onCancel: () => void
 }): JSX.Element {
@@ -225,6 +287,8 @@ function TodoModal({
   const [due, setDue] = useState(initial?.due ?? toDateInput(new Date()))
   const [repeat, setRepeat] = useState<TodoRepeat>(initial?.repeat ?? 'none')
   const [repeatDays, setRepeatDays] = useState<number[]>(initial?.repeatDays ?? [])
+  const [subtasks, setSubtasks] = useState<Subtask[]>(initial?.subtasks ?? [])
+  const [newSubtask, setNewSubtask] = useState('')
 
   const valid =
     title.trim().length > 0 && due.length > 0 && (repeat !== 'weekdays' || repeatDays.length > 0)
@@ -244,15 +308,37 @@ function TodoModal({
     }
   }
 
+  function addSubtask(): void {
+    const t = newSubtask.trim()
+    if (!t) return
+    setSubtasks((list) => [...list, { id: crypto.randomUUID(), title: t, completed: false }])
+    setNewSubtask('')
+  }
+
+  function renameSubtask(id: string, value: string): void {
+    setSubtasks((list) => list.map((s) => (s.id === id ? { ...s, title: value } : s)))
+  }
+
+  function removeSubtask(id: string): void {
+    setSubtasks((list) => list.filter((s) => s.id !== id))
+  }
+
   function submit(e: React.FormEvent): void {
     e.preventDefault()
     if (!valid) return
+    // Include text still sitting in the "add" box so it isn't silently lost.
+    const pending = newSubtask.trim()
+    const cleaned = [
+      ...subtasks.map((s) => ({ ...s, title: s.title.trim() })),
+      ...(pending ? [{ id: crypto.randomUUID(), title: pending, completed: false }] : [])
+    ].filter((s) => s.title.length > 0)
     onSave({
       id: initial?.id,
       title: title.trim(),
       due,
       repeat,
-      repeatDays: repeat === 'weekdays' ? repeatDays : undefined
+      repeatDays: repeat === 'weekdays' ? repeatDays : undefined,
+      subtasks: cleaned
     })
   }
 
@@ -284,6 +370,58 @@ function TodoModal({
               ))}
             </select>
           </label>
+        </div>
+        <div className="field">
+          Subtasks
+          {subtasks.length > 0 && (
+            <ul className="subtask-editor">
+              {subtasks.map((s) => (
+                <li key={s.id} className="subtask-editor-row">
+                  <input
+                    type="checkbox"
+                    className="todo-check subtask-check"
+                    checked={s.completed}
+                    title={s.completed ? 'Mark as not done' : 'Mark as done'}
+                    onChange={() =>
+                      setSubtasks((list) =>
+                        list.map((x) => (x.id === s.id ? { ...x, completed: !x.completed } : x))
+                      )
+                    }
+                  />
+                  <input
+                    value={s.title}
+                    placeholder="Subtask"
+                    onChange={(e) => renameSubtask(s.id, e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="row-action subtask-remove"
+                    title="Remove subtask"
+                    onClick={() => removeSubtask(s.id)}
+                  >
+                    ✕
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="subtask-add">
+            <input
+              value={newSubtask}
+              placeholder="Add a subtask…"
+              onChange={(e) => setNewSubtask(e.target.value)}
+              onKeyDown={(e) => {
+                // Enter adds the subtask instead of submitting the form.
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  addSubtask()
+                }
+              }}
+            />
+            <button type="button" className="btn" disabled={!newSubtask.trim()} onClick={addSubtask}>
+              +
+            </button>
+          </div>
         </div>
         {repeat === 'weekdays' && (
           <div className="field">
