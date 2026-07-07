@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { TimeEntry, Todo } from '../types'
 import { formatTime, toDateInput } from '../calendar/date-utils'
 import ManualEntryModal from './ManualEntryModal'
+import { applyEntryEdit, entryFromDraft, type TimeEntryDraft } from './entry-utils'
 
 type TimerStatus = 'idle' | 'running' | 'paused'
 
@@ -39,6 +40,7 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [showSubtaskSuggestions, setShowSubtaskSuggestions] = useState(false)
   const [addingEntry, setAddingEntry] = useState(false)
+  const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null)
 
   // This view stays mounted in the background (so a running timer survives tab
   // switches), and the Calendar tab can also record entries. Re-fetch whenever
@@ -105,8 +107,7 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
     await window.api.saveTimeEntries(next)
   }
 
-  function start(): void {
-    if (!task.trim()) return
+  function startTimer(): void {
     const t = new Date()
     setStartedAt(t)
     setSegmentStart(t)
@@ -115,6 +116,19 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
     setStatus('running')
     setShowSuggestions(false)
     setShowSubtaskSuggestions(false)
+  }
+
+  function start(): void {
+    if (!task.trim()) return
+    startTimer()
+  }
+
+  // Start the timer again with a finished entry's task and subtask.
+  function restart(entry: TimeEntry): void {
+    if (status !== 'idle') return
+    setTask(entry.task)
+    setSubtask(entry.subtask ?? '')
+    startTimer()
   }
 
   function pause(): void {
@@ -159,22 +173,18 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
   }
 
   // Manual entries are independent of the timer, so they can be added while it runs.
-  async function addManual(draft: {
-    task: string
-    subtask?: string
-    start: Date
-    end: Date
-  }): Promise<void> {
-    const entry: TimeEntry = {
-      id: crypto.randomUUID(),
-      task: draft.task,
-      subtask: draft.subtask,
-      start: draft.start.toISOString(),
-      end: draft.end.toISOString(),
-      seconds: Math.round((draft.end.getTime() - draft.start.getTime()) / 1000)
-    }
-    await mutateEntries((current) => [entry, ...current])
+  async function addManual(draft: TimeEntryDraft): Promise<void> {
+    await mutateEntries((current) => [entryFromDraft(draft), ...current])
     setAddingEntry(false)
+  }
+
+  async function saveEdit(draft: TimeEntryDraft): Promise<void> {
+    const target = editingEntry
+    if (!target) return
+    await mutateEntries((current) =>
+      current.map((e) => (e.id === target.id ? applyEntryEdit(e, draft) : e))
+    )
+    setEditingEntry(null)
   }
 
   const sorted = useMemo(
@@ -331,6 +341,17 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
               </span>
               <span className="entry-duration">{formatDuration(e.seconds)}</span>
               <span className="row-buttons">
+                <button
+                  className="row-action"
+                  title={idle ? 'Start this task again' : 'Stop the running timer first'}
+                  disabled={!idle}
+                  onClick={() => restart(e)}
+                >
+                  ▶
+                </button>
+                <button className="row-action" title="Edit" onClick={() => setEditingEntry(e)}>
+                  ✎
+                </button>
                 <button className="row-action" title="Delete" onClick={() => remove(e.id)}>
                   ✕
                 </button>
@@ -342,6 +363,22 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
 
       {addingEntry && (
         <ManualEntryModal onSave={addManual} onCancel={() => setAddingEntry(false)} />
+      )}
+
+      {editingEntry && (
+        <ManualEntryModal
+          editing
+          initialTask={editingEntry.task}
+          initialSubtask={editingEntry.subtask}
+          initialStart={new Date(editingEntry.start)}
+          initialEnd={new Date(editingEntry.end)}
+          onSave={saveEdit}
+          onDelete={() => {
+            void remove(editingEntry.id)
+            setEditingEntry(null)
+          }}
+          onCancel={() => setEditingEntry(null)}
+        />
       )}
     </div>
   )

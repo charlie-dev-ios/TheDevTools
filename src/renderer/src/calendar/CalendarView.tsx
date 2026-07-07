@@ -5,6 +5,11 @@ import DayView from './DayView'
 import EventModal from './EventModal'
 import EventPanel from './EventPanel'
 import ManualEntryModal from '../timetracking/ManualEntryModal'
+import {
+  applyEntryEdit,
+  entryFromDraft,
+  type TimeEntryDraft
+} from '../timetracking/entry-utils'
 import { HOUR_HEIGHT, addDays, addMinutes, addMonths, dayTitle, monthTitle } from './date-utils'
 
 type Mode = 'month' | 'day'
@@ -39,6 +44,8 @@ export default function CalendarView(): JSX.Element {
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([])
   // Prefill for the manual time-entry modal, null while closed.
   const [addingActual, setAddingActual] = useState<{ start: Date; end: Date } | null>(null)
+  // Tracked entry being edited through the modal, null while closed.
+  const [editingActual, setEditingActual] = useState<TimeEntry | null>(null)
 
   useEffect(() => {
     window.api.getEvents().then(setEvents)
@@ -77,27 +84,40 @@ export default function CalendarView(): JSX.Element {
     await window.api.saveEvents(next)
   }
 
-  // Record a time entry from the calendar, same shape the timer produces.
-  // Refetch first so entries tracked since the toggle-on aren't overwritten.
-  async function addActual(draft: {
-    task: string
-    subtask?: string
-    start: Date
-    end: Date
-  }): Promise<void> {
-    const current = await window.api.getTimeEntries()
-    const entry: TimeEntry = {
-      id: crypto.randomUUID(),
-      task: draft.task,
-      subtask: draft.subtask,
-      start: draft.start.toISOString(),
-      end: draft.end.toISOString(),
-      seconds: Math.round((draft.end.getTime() - draft.start.getTime()) / 1000)
-    }
-    const next = [entry, ...current]
+  // Entries are also written from the Time Tracking tab, so apply changes to
+  // a fresh copy instead of trusting the local one.
+  async function mutateTimeEntries(
+    change: (current: TimeEntry[]) => TimeEntry[]
+  ): Promise<void> {
+    const next = change(await window.api.getTimeEntries())
     setTimeEntries(next)
     await window.api.saveTimeEntries(next)
+  }
+
+  // Record a time entry from the calendar, same shape the timer produces.
+  async function addActual(draft: TimeEntryDraft): Promise<void> {
+    await mutateTimeEntries((current) => [entryFromDraft(draft), ...current])
     setAddingActual(null)
+  }
+
+  // A tracked block/chip was clicked: look the entry back up from its id.
+  function selectTracked(event: CalendarEvent): void {
+    const entry = timeEntries.find((e) => `tracked-${e.id}` === event.id)
+    if (entry) setEditingActual(entry)
+  }
+
+  async function saveActualEdit(draft: TimeEntryDraft): Promise<void> {
+    const target = editingActual
+    if (!target) return
+    await mutateTimeEntries((current) =>
+      current.map((e) => (e.id === target.id ? applyEntryEdit(e, draft) : e))
+    )
+    setEditingActual(null)
+  }
+
+  async function removeActual(id: string): Promise<void> {
+    await mutateTimeEntries((current) => current.filter((e) => e.id !== id))
+    setEditingActual(null)
   }
 
   function upsert(event: CalendarEvent): void {
@@ -215,6 +235,7 @@ export default function CalendarView(): JSX.Element {
               setMode('day')
             }}
             onSelect={(event) => setEditing({ event, isNew: false })}
+            onSelectTracked={selectTracked}
           />
         ) : (
           <>
@@ -233,6 +254,7 @@ export default function CalendarView(): JSX.Element {
                 setAddingActual({ start, end: addMinutes(start, DEFAULT_EVENT_MINUTES) })
               }
               onSelect={(event) => setDraft({ event: { ...event }, isNew: false })}
+              onSelectTracked={selectTracked}
             />
             {draft && (
               <EventPanel
@@ -257,6 +279,19 @@ export default function CalendarView(): JSX.Element {
           initialEnd={addingActual.end}
           onSave={addActual}
           onCancel={() => setAddingActual(null)}
+        />
+      )}
+
+      {editingActual && (
+        <ManualEntryModal
+          editing
+          initialTask={editingActual.task}
+          initialSubtask={editingActual.subtask}
+          initialStart={new Date(editingActual.start)}
+          initialEnd={new Date(editingActual.end)}
+          onSave={saveActualEdit}
+          onDelete={() => void removeActual(editingActual.id)}
+          onCancel={() => setEditingActual(null)}
         />
       )}
 
