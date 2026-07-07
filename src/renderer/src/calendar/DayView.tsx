@@ -27,6 +27,8 @@ interface Props {
   onUpdate: (event: CalendarEvent) => void
   onDraftChange: (event: CalendarEvent) => void
   onCreateAt: (start: Date) => void
+  /** Called instead of onCreateAt when the actual lane is clicked. */
+  onCreateActualAt?: (start: Date) => void
   onSelect: (event: CalendarEvent) => void
 }
 
@@ -123,6 +125,7 @@ export default function DayView({
   onUpdate,
   onDraftChange,
   onCreateAt,
+  onCreateActualAt,
   onSelect
 }: Props): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -287,6 +290,17 @@ export default function DayView({
     const startMin = snapClamp(pointerAbsMin(e.clientY), RANGE_END_MIN - 30)
     const start = new Date(date)
     start.setHours(0, startMin, 0, 0)
+    // With the lane split visible, a click right of the divider records an
+    // actual time entry instead of creating a planned event.
+    const grid = gridRef.current
+    if (tracked != null && onCreateActualAt && grid) {
+      const rect = grid.getBoundingClientRect()
+      const dividerX = 4 + (rect.width - 16) * 0.5
+      if (e.clientX - rect.left >= dividerX) {
+        onCreateActualAt(start)
+        return
+      }
+    }
     onCreateAt(start)
   }
 

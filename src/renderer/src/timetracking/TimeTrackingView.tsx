@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { TimeEntry, Todo } from '../types'
 import { formatTime, toDateInput } from '../calendar/date-utils'
+import ManualEntryModal from './ManualEntryModal'
 
 type TimerStatus = 'idle' | 'running' | 'paused'
 
@@ -23,7 +24,7 @@ function formatEntryDate(iso: string): string {
   })
 }
 
-export default function TimeTrackingView(): JSX.Element {
+export default function TimeTrackingView({ active = true }: { active?: boolean }): JSX.Element {
   const [entries, setEntries] = useState<TimeEntry[]>([])
   const [todos, setTodos] = useState<Todo[]>([])
   const [task, setTask] = useState('')
@@ -37,11 +38,16 @@ export default function TimeTrackingView(): JSX.Element {
   const [now, setNow] = useState<Date>(() => new Date())
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [showSubtaskSuggestions, setShowSubtaskSuggestions] = useState(false)
+  const [addingEntry, setAddingEntry] = useState(false)
 
+  // This view stays mounted in the background (so a running timer survives tab
+  // switches), and the Calendar tab can also record entries. Re-fetch whenever
+  // the tab becomes visible so those show up.
   useEffect(() => {
+    if (!active) return
     window.api.getTimeEntries().then(setEntries)
     window.api.getTodos().then(setTodos)
-  }, [])
+  }, [active])
 
   // Tick every second while running so the display stays live.
   useEffect(() => {
@@ -89,7 +95,12 @@ export default function TimeTrackingView(): JSX.Element {
       .slice(0, MAX_SUGGESTIONS)
   }, [todos, task, subtask])
 
-  async function persist(next: TimeEntry[]): Promise<void> {
+  // Entries are also written from the Calendar tab's Actual lane, so apply
+  // changes to a fresh copy instead of trusting the local one.
+  async function mutateEntries(
+    change: (current: TimeEntry[]) => TimeEntry[]
+  ): Promise<void> {
+    const next = change(await window.api.getTimeEntries())
     setEntries(next)
     await window.api.saveTimeEntries(next)
   }
@@ -134,7 +145,7 @@ export default function TimeTrackingView(): JSX.Element {
       end: end.toISOString(),
       seconds: Math.round(total)
     }
-    void persist([entry, ...entries])
+    void mutateEntries((current) => [entry, ...current])
     setStatus('idle')
     setStartedAt(null)
     setSegmentStart(null)
@@ -144,7 +155,26 @@ export default function TimeTrackingView(): JSX.Element {
   }
 
   async function remove(id: string): Promise<void> {
-    await persist(entries.filter((e) => e.id !== id))
+    await mutateEntries((current) => current.filter((e) => e.id !== id))
+  }
+
+  // Manual entries are independent of the timer, so they can be added while it runs.
+  async function addManual(draft: {
+    task: string
+    subtask?: string
+    start: Date
+    end: Date
+  }): Promise<void> {
+    const entry: TimeEntry = {
+      id: crypto.randomUUID(),
+      task: draft.task,
+      subtask: draft.subtask,
+      start: draft.start.toISOString(),
+      end: draft.end.toISOString(),
+      seconds: Math.round((draft.end.getTime() - draft.start.getTime()) / 1000)
+    }
+    await mutateEntries((current) => [entry, ...current])
+    setAddingEntry(false)
   }
 
   const sorted = useMemo(
@@ -158,6 +188,9 @@ export default function TimeTrackingView(): JSX.Element {
     <div className="panel">
       <header className="panel-header">
         <h2 className="panel-title">Time Tracking</h2>
+        <button className="link-btn" onClick={() => setAddingEntry(true)}>
+          + Add entry
+        </button>
       </header>
 
       <div className="timer-card">
@@ -305,6 +338,10 @@ export default function TimeTrackingView(): JSX.Element {
             </li>
           ))}
         </ul>
+      )}
+
+      {addingEntry && (
+        <ManualEntryModal onSave={addManual} onCancel={() => setAddingEntry(false)} />
       )}
     </div>
   )
