@@ -48,6 +48,10 @@ export interface TimeEntry {
   task: string
   /** Optional subtask being tracked. */
   subtask?: string
+  /** Optional project this entry belongs to. */
+  project?: string
+  /** Optional hashtag (stored without the leading '#'). */
+  hashtag?: string
   /** ISO datetime when tracking started. */
   start: string
   /** ISO datetime when tracking stopped. */

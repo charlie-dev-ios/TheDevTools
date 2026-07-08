@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import type { TimeEntry, Todo } from '../types'
 import { formatTime } from '../calendar/date-utils'
 import ManualEntryModal from './ManualEntryModal'
-import { applyEntryEdit, entryFromDraft, type TimeEntryDraft } from './entry-utils'
+import {
+  applyEntryEdit,
+  entryFromDraft,
+  normalizeHashtag,
+  type TimeEntryDraft
+} from './entry-utils'
 
 type TimerStatus = 'idle' | 'running' | 'paused'
 
@@ -30,6 +35,8 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
   const [todos, setTodos] = useState<Todo[]>([])
   const [task, setTask] = useState('')
   const [subtask, setSubtask] = useState('')
+  const [project, setProject] = useState('')
+  const [hashtag, setHashtag] = useState('')
   const [status, setStatus] = useState<TimerStatus>('idle')
   const [startedAt, setStartedAt] = useState<Date | null>(null)
   // Seconds accumulated across finished run segments (paused time excluded).
@@ -127,6 +134,8 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
     if (status !== 'idle') return
     setTask(entry.task)
     setSubtask(entry.subtask ?? '')
+    setProject(entry.project ?? '')
+    setHashtag(entry.hashtag ?? '')
     startTimer()
   }
 
@@ -154,6 +163,8 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
       id: crypto.randomUUID(),
       task: task.trim(),
       subtask: subtask.trim() || undefined,
+      project: project.trim() || undefined,
+      hashtag: normalizeHashtag(hashtag),
       start: startedAt.toISOString(),
       end: end.toISOString(),
       seconds: Math.round(total)
@@ -165,6 +176,8 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
     setAccumulated(0)
     setTask('')
     setSubtask('')
+    setProject('')
+    setHashtag('')
   }
 
   async function remove(id: string): Promise<void> {
@@ -280,6 +293,23 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
           )}
         </div>
 
+        <div className="timer-meta">
+          <input
+            className="task-input meta-input"
+            value={project}
+            disabled={!idle}
+            placeholder="Project (optional)"
+            onChange={(e) => setProject(e.target.value)}
+          />
+          <input
+            className="task-input meta-input"
+            value={hashtag}
+            disabled={!idle}
+            placeholder="#hashtag (optional)"
+            onChange={(e) => setHashtag(e.target.value)}
+          />
+        </div>
+
         <div className={status === 'running' ? 'timer-display running' : 'timer-display'}>
           {formatDuration(elapsed)}
         </div>
@@ -317,6 +347,14 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
               </>
             )}
             {status === 'paused' && ' (paused)'}
+            {(project.trim() || normalizeHashtag(hashtag)) && (
+              <div className="entry-tags">
+                {project.trim() && <span className="tag-chip project-chip">{project.trim()}</span>}
+                {normalizeHashtag(hashtag) && (
+                  <span className="tag-chip hashtag-chip">#{normalizeHashtag(hashtag)}</span>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -333,6 +371,12 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
               <span className="row-text">
                 {e.task}
                 {e.subtask && <span className="entry-subtask"> › {e.subtask}</span>}
+                {(e.project || e.hashtag) && (
+                  <span className="entry-tags">
+                    {e.project && <span className="tag-chip project-chip">{e.project}</span>}
+                    {e.hashtag && <span className="tag-chip hashtag-chip">#{e.hashtag}</span>}
+                  </span>
+                )}
               </span>
               <span className="entry-range">
                 {formatEntryDate(e.start)} · {formatTime(new Date(e.start))}–
@@ -369,6 +413,8 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
           editing
           initialTask={editingEntry.task}
           initialSubtask={editingEntry.subtask}
+          initialProject={editingEntry.project}
+          initialHashtag={editingEntry.hashtag}
           initialStart={new Date(editingEntry.start)}
           initialEnd={new Date(editingEntry.end)}
           onSave={saveEdit}

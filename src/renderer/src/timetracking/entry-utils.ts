@@ -4,8 +4,15 @@ import type { TimeEntry } from '../types'
 export interface TimeEntryDraft {
   task: string
   subtask?: string
+  project?: string
+  hashtag?: string
   start: Date
   end: Date
+}
+
+/** Strip a leading '#' and surrounding whitespace so tags store consistently. */
+export function normalizeHashtag(value: string): string | undefined {
+  return value.trim().replace(/^#+/, '').trim() || undefined
 }
 
 /** Build a new entry from a draft; seconds span the whole range. */
@@ -14,6 +21,8 @@ export function entryFromDraft(draft: TimeEntryDraft): TimeEntry {
     id: crypto.randomUUID(),
     task: draft.task,
     subtask: draft.subtask,
+    project: draft.project,
+    hashtag: draft.hashtag,
     start: draft.start.toISOString(),
     end: draft.end.toISOString(),
     seconds: Math.round((draft.end.getTime() - draft.start.getTime()) / 1000)
@@ -39,6 +48,8 @@ export function applyEntryEdit(entry: TimeEntry, draft: TimeEntryDraft): TimeEnt
     ...entry,
     task: draft.task,
     subtask: draft.subtask,
+    project: draft.project,
+    hashtag: draft.hashtag,
     start: startChanged ? draft.start.toISOString() : entry.start,
     end: endChanged ? draft.end.toISOString() : entry.end,
     seconds:

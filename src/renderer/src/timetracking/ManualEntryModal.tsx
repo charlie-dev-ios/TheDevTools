@@ -7,7 +7,7 @@ import {
   toDateInput,
   toTimeInput
 } from '../calendar/date-utils'
-import type { TimeEntryDraft } from './entry-utils'
+import { normalizeHashtag, type TimeEntryDraft } from './entry-utils'
 
 const DAY_MAX = 24 * 60 - 5
 
@@ -18,6 +18,10 @@ interface Props {
   initialTask?: string
   /** Prefill for the subtask field. */
   initialSubtask?: string
+  /** Prefill for the project field. */
+  initialProject?: string
+  /** Prefill for the hashtag field (without the leading '#'). */
+  initialHashtag?: string
   /** Prefill for the start field. Defaults to one hour ago. */
   initialStart?: Date
   /** Prefill for the end field. Defaults to now. */
@@ -33,6 +37,8 @@ export default function ManualEntryModal({
   editing = false,
   initialTask,
   initialSubtask,
+  initialProject,
+  initialHashtag,
   initialStart,
   initialEnd,
   onSave,
@@ -41,6 +47,8 @@ export default function ManualEntryModal({
 }: Props): JSX.Element {
   const [task, setTask] = useState(initialTask ?? '')
   const [subtask, setSubtask] = useState(initialSubtask ?? '')
+  const [project, setProject] = useState(initialProject ?? '')
+  const [hashtag, setHashtag] = useState(initialHashtag ?? '')
   const [date, setDate] = useState(() => toDateInput(initialStart ?? new Date()))
   // Default to the past hour so the fields land near what was just worked on.
   const [startTime, setStartTime] = useState(() =>
@@ -62,7 +70,14 @@ export default function ManualEntryModal({
   function submit(e: React.FormEvent): void {
     e.preventDefault()
     if (!valid || !start || !end) return
-    onSave({ task: task.trim(), subtask: subtask.trim() || undefined, start, end })
+    onSave({
+      task: task.trim(),
+      subtask: subtask.trim() || undefined,
+      project: project.trim() || undefined,
+      hashtag: normalizeHashtag(hashtag),
+      start,
+      end
+    })
   }
 
   return (
@@ -86,6 +101,24 @@ export default function ManualEntryModal({
             onChange={(e) => setSubtask(e.target.value)}
           />
         </label>
+        <div className="field-row">
+          <label className="field">
+            Project (optional)
+            <input
+              value={project}
+              placeholder="Which project?"
+              onChange={(e) => setProject(e.target.value)}
+            />
+          </label>
+          <label className="field">
+            Hashtag (optional)
+            <input
+              value={hashtag}
+              placeholder="#tag"
+              onChange={(e) => setHashtag(e.target.value)}
+            />
+          </label>
+        </div>
         <label className="field">
           Date
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
