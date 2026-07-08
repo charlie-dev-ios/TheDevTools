@@ -1,16 +1,18 @@
 import { useEffect, useState } from 'react'
+import AggregationView from './aggregation/AggregationView'
 import CalendarView from './calendar/CalendarView'
 import SnippetEditor from './components/SnippetEditor'
 import TimeTrackingView from './timetracking/TimeTrackingView'
 import TodoView from './todo/TodoView'
 import type { Snippet } from './types'
 
-type View = 'calendar' | 'todos' | 'tracking' | 'history' | 'snippets'
+type View = 'calendar' | 'todos' | 'tracking' | 'aggregation' | 'history' | 'snippets'
 
 const NAV: { id: View; label: string; icon: string }[] = [
   { id: 'calendar', label: 'Calendar', icon: '📅' },
   { id: 'todos', label: 'Todos', icon: '✅' },
   { id: 'tracking', label: 'Time Tracking', icon: '⏱️' },
+  { id: 'aggregation', label: 'Aggregation', icon: '📊' },
   { id: 'history', label: 'Clipboard History', icon: '📋' },
   { id: 'snippets', label: 'Snippets', icon: '✂️' }
 ]
@@ -47,6 +49,7 @@ export default function MainApp(): JSX.Element {
       <section className="content">
         {view === 'calendar' && <CalendarView />}
         {view === 'todos' && <TodoView />}
+        {view === 'aggregation' && <AggregationView active={view === 'aggregation'} />}
         {view === 'history' && <HistoryPanel onToast={setToast} />}
         {view === 'snippets' && <SnippetsPanel onToast={setToast} />}
         {/* Kept mounted so a running timer survives tab switches. */}
