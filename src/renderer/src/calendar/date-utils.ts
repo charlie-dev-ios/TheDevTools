@@ -44,6 +44,12 @@ export function addMonths(date: Date, months: number): Date {
   return d
 }
 
+/** Midnight of the Sunday that starts the week `date` falls in (weeks start Sun). */
+export function startOfWeek(date: Date): Date {
+  const d = startOfDay(date)
+  return addDays(d, -d.getDay())
+}
+
 /**
  * Add whole months, clamping the day to the last day of the target month so a
  * naive month overflow can't happen (e.g. Jan 31 + 1 month → Feb 28, not Mar 3).
