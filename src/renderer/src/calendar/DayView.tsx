@@ -383,6 +383,11 @@ export default function DayView({
       >
         <div className="event-header">
           <span className="event-title">
+            {event.repeat && event.repeat !== 'none' && (
+              <span className="event-repeat" title="Repeating event">
+                🔁{' '}
+              </span>
+            )}
             {event.title || (kind === 'draft' ? 'New event' : '')}
           </span>
           <span className="event-time">

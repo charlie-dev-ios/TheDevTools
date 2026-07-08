@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
-import type { CalendarEvent } from '../types'
+import { useEffect, useState } from 'react'
+import type { CalendarEvent, CalendarRepeat } from '../types'
 import TimeStepper from './TimeStepper'
 import TitleAutocomplete from './TitleAutocomplete'
 import {
@@ -9,13 +9,21 @@ import {
   toDateInput,
   toTimeInput
 } from './date-utils'
+import {
+  DEFAULT_OCCURRENCES,
+  MAX_OCCURRENCES,
+  REPEAT_OPTIONS,
+  expandSeries,
+  repeatLabel
+} from './event-utils'
 
 interface Props {
   event: CalendarEvent
   isNew: boolean
   onChange: (event: CalendarEvent) => void
-  onSave: (event: CalendarEvent) => void
+  onSave: (events: CalendarEvent[]) => void
   onDelete: (id: string) => void
+  onDeleteSeries: (seriesId: string) => void
   onCancel: () => void
 }
 
@@ -32,12 +40,15 @@ export default function EventPanel({
   onChange,
   onSave,
   onDelete,
+  onDeleteSeries,
   onCancel
 }: Props): JSX.Element {
   const start = new Date(event.start)
   const end = new Date(event.end)
   const startTime = toTimeInput(start)
   const endTime = toTimeInput(end)
+  const repeat = event.repeat ?? 'none'
+  const [count, setCount] = useState(DEFAULT_OCCURRENCES)
 
   useEffect(() => {
     function onKey(e: KeyboardEvent): void {
@@ -76,12 +87,16 @@ export default function EventPanel({
   function save(): void {
     let e = end
     if (e <= start) e = new Date(start.getTime() + 30 * 60_000)
-    onSave({
+    const base: CalendarEvent = {
       ...event,
       title: event.title.trim() || 'Untitled',
       description: event.description?.trim(),
-      end: e.toISOString()
-    })
+      end: e.toISOString(),
+      repeat
+    }
+    // Only a brand-new event expands into a series; editing an existing one
+    // saves just that occurrence so the rest of the series is left untouched.
+    onSave(isNew ? expandSeries(base, repeat === 'none' ? 1 : count) : [base])
   }
 
   return (
@@ -132,6 +147,43 @@ export default function EventPanel({
         />
       </div>
 
+      {isNew ? (
+        <div className="field-row">
+          <label className="field">
+            <span>Repeat</span>
+            <select
+              value={repeat}
+              onChange={(e) => onChange({ ...event, repeat: e.target.value as CalendarRepeat })}
+            >
+              {REPEAT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {repeat !== 'none' && (
+            <label className="field">
+              <span>Occurrences</span>
+              <input
+                type="number"
+                min={1}
+                max={MAX_OCCURRENCES}
+                value={count}
+                onChange={(e) => setCount(Number(e.target.value))}
+              />
+            </label>
+          )}
+        </div>
+      ) : (
+        event.seriesId && (
+          <label className="field">
+            <span>Repeat</span>
+            <div className="repeat-note">🔁 {repeatLabel(repeat)} series</div>
+          </label>
+        )
+      )}
+
       <div className="panel-hint">
         Drag the dashed block on the timeline to move it, or drag its bottom edge to resize.
       </div>
@@ -143,6 +195,14 @@ export default function EventPanel({
         {!isNew && (
           <button className="btn danger" onClick={() => onDelete(event.id)}>
             Delete
+          </button>
+        )}
+        {!isNew && event.seriesId && (
+          <button
+            className="btn danger"
+            onClick={() => onDeleteSeries(event.seriesId as string)}
+          >
+            Delete series
           </button>
         )}
         <button className="btn" onClick={onCancel}>

@@ -44,6 +44,25 @@ export function addMonths(date: Date, months: number): Date {
   return d
 }
 
+/**
+ * Add whole months, clamping the day to the last day of the target month so a
+ * naive month overflow can't happen (e.g. Jan 31 + 1 month → Feb 28, not Mar 3).
+ * The time of day is preserved.
+ */
+export function addMonthsClamped(date: Date, months: number): Date {
+  const y = date.getFullYear()
+  const m = date.getMonth()
+  const lastDay = new Date(y, m + months + 1, 0).getDate()
+  return new Date(
+    y,
+    m + months,
+    Math.min(date.getDate(), lastDay),
+    date.getHours(),
+    date.getMinutes(),
+    date.getSeconds()
+  )
+}
+
 export function addMinutes(date: Date, minutes: number): Date {
   return new Date(date.getTime() + minutes * 60_000)
 }

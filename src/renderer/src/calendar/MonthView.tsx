@@ -80,7 +80,10 @@ export default function MonthView({
                     <span className="cell-event-time">
                       {formatTime(new Date(event.start))}
                     </span>
-                    <span className="cell-event-title">{event.title}</span>
+                    <span className="cell-event-title">
+                      {event.repeat && event.repeat !== 'none' && '🔁 '}
+                      {event.title}
+                    </span>
                   </button>
                 ))}
                 {items.length > MAX_PER_CELL && (
