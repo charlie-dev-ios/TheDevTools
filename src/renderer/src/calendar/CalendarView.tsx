@@ -287,6 +287,8 @@ export default function CalendarView(): JSX.Element {
           editing
           initialTask={editingActual.task}
           initialSubtask={editingActual.subtask}
+          initialProject={editingActual.project}
+          initialHashtag={editingActual.hashtag}
           initialStart={new Date(editingActual.start)}
           initialEnd={new Date(editingActual.end)}
           onSave={saveActualEdit}

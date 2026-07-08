@@ -696,6 +696,45 @@ body {
   font-size: 13px;
 }
 
+.timer-meta {
+  display: flex;
+  gap: 8px;
+}
+
+.timer-meta .meta-input {
+  flex: 1;
+  font-size: 13px;
+  padding: 8px 12px;
+}
+
+.entry-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.tag-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.project-chip {
+  color: var(--accent);
+  background: rgba(76, 139, 245, 0.15);
+}
+
+.hashtag-chip {
+  color: var(--actual);
+  background: rgba(52, 168, 83, 0.15);
+}
+
 .entry-range {
   flex-shrink: 0;
   color: var(--muted);

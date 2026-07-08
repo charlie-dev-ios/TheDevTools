@@ -34,6 +34,8 @@ export interface TimeEntry {
   id: string
   task: string
   subtask?: string
+  project?: string
+  hashtag?: string
   start: string
   end: string
   seconds: number
