@@ -1,6 +1,15 @@
 import { useState } from 'react'
-import { fromDateTimeInputs, toDateInput, toTimeInput } from '../calendar/date-utils'
+import TimeStepper from '../calendar/TimeStepper'
+import {
+  fromDateTimeInputs,
+  hmOfMinutes,
+  minutesOfHM,
+  toDateInput,
+  toTimeInput
+} from '../calendar/date-utils'
 import { normalizeHashtag, type TimeEntryDraft } from './entry-utils'
+
+const DAY_MAX = 24 * 60 - 5
 
 interface Props {
   /** Switches the copy from adding a new entry to editing an existing one. */
@@ -50,6 +59,13 @@ export default function ManualEntryModal({
   const start = date && startTime ? fromDateTimeInputs(date, startTime) : null
   const end = date && endTime ? fromDateTimeInputs(date, endTime) : null
   const valid = task.trim().length > 0 && start !== null && end !== null && end > start
+
+  // Changing the start keeps the current duration and shifts the end with it.
+  function changeStart(value: string): void {
+    const duration = Math.max(5, minutesOfHM(endTime) - minutesOfHM(startTime))
+    setStartTime(value)
+    setEndTime(hmOfMinutes(Math.min(minutesOfHM(value) + duration, DAY_MAX)))
+  }
 
   function submit(e: React.FormEvent): void {
     e.preventDefault()
@@ -103,19 +119,22 @@ export default function ManualEntryModal({
             />
           </label>
         </div>
-        <div className="field-row">
-          <label className="field">
-            Date
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          </label>
-          <label className="field">
-            Start
-            <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
-          </label>
-          <label className="field">
-            End
-            <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
-          </label>
+        <label className="field">
+          Date
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </label>
+        <div className="field">
+          <span>Start</span>
+          <TimeStepper value={startTime} max={DAY_MAX} onChange={changeStart} />
+        </div>
+        <div className="field">
+          <span>End</span>
+          <TimeStepper
+            value={endTime}
+            min={minutesOfHM(startTime) + 5}
+            max={DAY_MAX}
+            onChange={setEndTime}
+          />
         </div>
         {start && end && end <= start && (
           <div className="field-error">End time must be after start time.</div>
