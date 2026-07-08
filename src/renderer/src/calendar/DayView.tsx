@@ -46,7 +46,7 @@ interface DragState {
 
 const RANGE_START_MIN = DAY_START_HOUR * 60
 const RANGE_END_MIN = DAY_END_HOUR * 60
-// Hour lines at 7, 8, … 21.
+// Hour lines at 7, 8, … 23.
 const HOUR_MARKS = Array.from(
   { length: DAY_END_HOUR - DAY_START_HOUR + 1 },
   (_, i) => DAY_START_HOUR + i

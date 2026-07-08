@@ -22,7 +22,7 @@ The app has two surfaces:
 
 ### Calendar
 - 📅 **Month & Day views** with prev/next/today navigation. The day view shows
-  07:00–21:00 with a live current-time indicator.
+  07:00–23:00 with a live current-time indicator.
 - 🗓️ **Events** — create (click a day or an hour), edit title/date/time,
   delete. Click a day number to jump into its day view.
 - 🖱️ **Drag to reschedule** — in the day view, drag an event to move it
