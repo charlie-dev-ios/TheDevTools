@@ -592,6 +592,12 @@ body {
   position: relative;
 }
 
+/* Event title fields wrap their input in .autocomplete, so stretch it to fill. */
+.field .autocomplete > input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .task-input {
   width: 100%;
   background: rgba(255, 255, 255, 0.06);
