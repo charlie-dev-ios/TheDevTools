@@ -1216,6 +1216,13 @@ body {
   line-height: 1.5;
 }
 
+/* Read-only "this belongs to a repeating series" note shown when editing. */
+.repeat-note {
+  font-size: 13px;
+  color: var(--fg);
+  padding: 6px 0;
+}
+
 .event-panel input,
 .event-panel select,
 .event-panel textarea {

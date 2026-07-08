@@ -44,6 +44,9 @@ export interface TimeEntry {
   seconds: number
 }
 
+/** How a calendar event repeats. */
+export type CalendarRepeat = 'none' | 'daily' | 'weekly' | 'monthly'
+
 export interface CalendarEvent {
   id: string
   title: string
@@ -53,4 +56,8 @@ export interface CalendarEvent {
   start: string
   /** ISO datetime string. */
   end: string
+  /** How this event repeats. Absent/`'none'` for a one-off event. */
+  repeat?: CalendarRepeat
+  /** Shared id linking every occurrence generated from the same series. */
+  seriesId?: string
 }

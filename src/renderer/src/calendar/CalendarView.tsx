@@ -10,12 +10,22 @@ import {
   entryFromDraft,
   type TimeEntryDraft
 } from '../timetracking/entry-utils'
-import { HOUR_HEIGHT, addDays, addMinutes, addMonths, dayTitle, monthTitle } from './date-utils'
+import {
+  HOUR_HEIGHT,
+  MAX_HOUR_HEIGHT,
+  MIN_HOUR_HEIGHT,
+  addDays,
+  addMinutes,
+  addMonths,
+  dayTitle,
+  monthTitle
+} from './date-utils'
 
 type Mode = 'month' | 'day'
 
 const MODE_STORAGE_KEY = 'calendar:mode'
 const ACTUALS_STORAGE_KEY = 'calendar:showActuals'
+const SCALE_STORAGE_KEY = 'calendar:hourHeight'
 const DEFAULT_EVENT_MINUTES = 30
 
 function loadInitialMode(): Mode {
@@ -24,6 +34,14 @@ function loadInitialMode(): Mode {
 
 function loadInitialShowActuals(): boolean {
   return localStorage.getItem(ACTUALS_STORAGE_KEY) === 'true'
+}
+
+// Restore the last day-view zoom, ignoring anything out of the allowed range.
+function loadInitialHourHeight(): number {
+  const raw = Number(localStorage.getItem(SCALE_STORAGE_KEY))
+  return Number.isFinite(raw) && raw >= MIN_HOUR_HEIGHT && raw <= MAX_HOUR_HEIGHT
+    ? raw
+    : HOUR_HEIGHT
 }
 
 interface Editing {
@@ -38,7 +56,7 @@ export default function CalendarView(): JSX.Element {
   // Month view edits through the modal; day view edits through the side panel.
   const [editing, setEditing] = useState<Editing | null>(null)
   const [draft, setDraft] = useState<Editing | null>(null)
-  const [hourHeight, setHourHeight] = useState(HOUR_HEIGHT)
+  const [hourHeight, setHourHeight] = useState(loadInitialHourHeight)
   // "Actual" toggle: overlay tracked time entries on the calendar.
   const [showActuals, setShowActuals] = useState<boolean>(loadInitialShowActuals)
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([])
@@ -60,6 +78,11 @@ export default function CalendarView(): JSX.Element {
   useEffect(() => {
     localStorage.setItem(ACTUALS_STORAGE_KEY, String(showActuals))
   }, [showActuals])
+
+  // Remember the day-view zoom so the timeline reopens at the same scale.
+  useEffect(() => {
+    localStorage.setItem(SCALE_STORAGE_KEY, String(hourHeight))
+  }, [hourHeight])
 
   // Refetch on every toggle-on so newly stopped timers show up.
   useEffect(() => {
@@ -128,8 +151,24 @@ export default function CalendarView(): JSX.Element {
     void persist(next)
   }
 
+  // Save a batch: replace any events sharing an incoming id, append the rest.
+  // Used when a new event expands into a repeating series of occurrences.
+  function upsertMany(incoming: CalendarEvent[]): void {
+    const ids = new Set(incoming.map((e) => e.id))
+    void persist([...events.filter((e) => !ids.has(e.id)), ...incoming])
+    setEditing(null)
+    setDraft(null)
+  }
+
   function remove(id: string): void {
     void persist(events.filter((e) => e.id !== id))
+    setEditing(null)
+    setDraft(null)
+  }
+
+  // Delete every occurrence generated from the same repeating series.
+  function removeSeries(seriesId: string): void {
+    void persist(events.filter((e) => e.seriesId !== seriesId))
     setEditing(null)
     setDraft(null)
   }
@@ -261,11 +300,9 @@ export default function CalendarView(): JSX.Element {
                 event={draft.event}
                 isNew={draft.isNew}
                 onChange={(event) => setDraft((d) => (d ? { ...d, event } : d))}
-                onSave={(event) => {
-                  upsert(event)
-                  setDraft(null)
-                }}
+                onSave={upsertMany}
                 onDelete={remove}
+                onDeleteSeries={removeSeries}
                 onCancel={() => setDraft(null)}
               />
             )}
@@ -301,11 +338,9 @@ export default function CalendarView(): JSX.Element {
         <EventModal
           event={editing.event}
           isNew={editing.isNew}
-          onSave={(event) => {
-            upsert(event)
-            setEditing(null)
-          }}
+          onSave={upsertMany}
           onDelete={remove}
+          onDeleteSeries={removeSeries}
           onClose={() => setEditing(null)}
         />
       )}
