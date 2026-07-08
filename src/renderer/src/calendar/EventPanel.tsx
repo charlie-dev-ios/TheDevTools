@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import type { CalendarEvent } from '../types'
 import TimeStepper from './TimeStepper'
+import TitleAutocomplete from './TitleAutocomplete'
 import {
   fromDateTimeInputs,
   hmOfMinutes,
@@ -94,12 +95,11 @@ export default function EventPanel({
 
       <label className="field">
         <span>Title</span>
-        <input
-          type="text"
+        <TitleAutocomplete
           value={event.title}
           placeholder="Untitled"
           autoFocus
-          onChange={(e) => onChange({ ...event, title: e.target.value })}
+          onChange={(title) => onChange({ ...event, title })}
         />
       </label>
 

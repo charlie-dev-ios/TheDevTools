@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { CalendarEvent } from '../types'
 import TimeStepper from './TimeStepper'
+import TitleAutocomplete from './TitleAutocomplete'
 import {
   fromDateTimeInputs,
   hmOfMinutes,
@@ -62,12 +63,11 @@ export default function EventModal({
 
         <label className="field">
           <span>Title</span>
-          <input
-            type="text"
+          <TitleAutocomplete
             value={title}
             placeholder="Untitled"
             autoFocus
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={setTitle}
           />
         </label>
 
