@@ -71,6 +71,7 @@ src/
       calendar/        month/day views, event modal, drag-to-reschedule, utils
       todo/            TodoView
       timetracking/    TimeTrackingView, manual entry modal, utils
+      aggregation/     AggregationView (tracked-effort totals)
       components/      SnippetEditor
 ```
 
@@ -132,7 +133,7 @@ Match the existing style — it is consistent across the codebase:
 - **Repeating todos roll forward on read:** `getTodos()` calls
   `rollForwardRepeats()`, which is deliberately idempotent (safe to run on every
   fetch). Don't move that logic into a timer without understanding it.
-- **`README.md` shows `npm`** in examples but the pinned toolchain is **bun**
-  (`mise.toml`). Both work; prefer bun to match the toolchain.
-- Keep the `README.md` project-structure section roughly in step with `src/`
-  when you add or move top-level UI areas.
+- **Prefer `bun`** to match the pinned toolchain (`mise.toml`); the
+  `package.json` scripts are runner-agnostic so `npm` works too.
+- Keep `README.md` (feature list and project-structure section) roughly in step
+  with `src/` when you add or move top-level UI areas.
