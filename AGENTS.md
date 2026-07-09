@@ -71,6 +71,7 @@ src/
       calendar/        month/day views, event modal, drag-to-reschedule, utils
       todo/            TodoView
       timetracking/    TimeTrackingView, manual entry modal, utils
+      aggregation/     AggregationView (tracked-effort totals)
       components/      SnippetEditor
 ```
 

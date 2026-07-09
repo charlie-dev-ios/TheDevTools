@@ -9,8 +9,8 @@ The app has two surfaces:
 
 - **Quick launcher** — a floating panel on `⌘⇧V` for fast paste.
 - **Main window** — a normal window (menu-bar icon → *Open TheDevTools*) with a
-  sidebar: **Calendar**, **Todos**, **Time Tracking**, **Clipboard History**,
-  **Snippets**.
+  sidebar: **Calendar**, **Todos**, **Time Tracking**, **Aggregation**,
+  **Clipboard History**, **Snippets**.
 
 ## Features
 
@@ -52,6 +52,14 @@ The app has two surfaces:
   their subtasks.
 - ✍️ **Manual entries** — add or edit past entries by hand; restart the timer
   from any previous entry.
+
+### Aggregation
+- 📊 **Effort totals** — summarize tracked time grouped by **task**, **project**
+  or **hashtag**.
+- 🗓️ **Scoped periods** — view a single day, week or month with
+  prev/next/today navigation.
+- 📈 Each bucket shows its total effort, a proportional bar, entry count and
+  share of the period.
 
 ### Shared
 - 📋 **Clipboard history** — automatically records text you copy (deduped, most
@@ -149,6 +157,8 @@ src/
         TimeTrackingView.tsx timer + tracked-entry list
         ManualEntryModal.tsx add/edit a time entry by hand
         entry-utils.ts       time-entry draft helpers
+      aggregation/
+        AggregationView.tsx  tracked-effort totals by task/project/hashtag
       components/
         SnippetEditor.tsx
 ```
