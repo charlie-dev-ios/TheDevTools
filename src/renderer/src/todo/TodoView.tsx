@@ -411,8 +411,10 @@ function TodoModal({
               placeholder="Add a subtask…"
               onChange={(e) => setNewSubtask(e.target.value)}
               onKeyDown={(e) => {
-                // Enter adds the subtask instead of submitting the form.
-                if (e.key === 'Enter') {
+                // Ignore Enter used to confirm an IME conversion, otherwise the
+                // in-progress candidate gets inserted as a subtask.
+                if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                  // Enter adds the subtask instead of submitting the form.
                   e.preventDefault()
                   addSubtask()
                 }
