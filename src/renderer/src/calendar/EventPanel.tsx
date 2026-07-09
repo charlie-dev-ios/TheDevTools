@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import type { CalendarEvent, CalendarRepeat } from '../types'
 import TimeStepper from './TimeStepper'
 import TitleAutocomplete from './TitleAutocomplete'
@@ -7,15 +7,10 @@ import {
   hmOfMinutes,
   minutesOfHM,
   toDateInput,
-  toTimeInput
+  toTimeInput,
+  WEEKDAYS
 } from './date-utils'
-import {
-  DEFAULT_OCCURRENCES,
-  MAX_OCCURRENCES,
-  REPEAT_OPTIONS,
-  expandSeries,
-  repeatLabel
-} from './event-utils'
+import { REPEAT_OPTIONS, expandSeries, repeatLabel } from './event-utils'
 
 interface Props {
   event: CalendarEvent
@@ -48,7 +43,7 @@ export default function EventPanel({
   const startTime = toTimeInput(start)
   const endTime = toTimeInput(end)
   const repeat = event.repeat ?? 'none'
-  const [count, setCount] = useState(DEFAULT_OCCURRENCES)
+  const repeatDays = event.repeatDays ?? []
 
   useEffect(() => {
     function onKey(e: KeyboardEvent): void {
@@ -84,6 +79,19 @@ export default function EventPanel({
     onChange({ ...event, start: s.toISOString(), end: e.toISOString() })
   }
 
+  function changeRepeat(value: CalendarRepeat): void {
+    // Seed the weekday picker with the event's own weekday the first time.
+    const days = value === 'weekdays' && repeatDays.length === 0 ? [start.getDay()] : event.repeatDays
+    onChange({ ...event, repeat: value, repeatDays: value === 'weekdays' ? days : undefined })
+  }
+
+  function toggleDay(day: number): void {
+    const next = repeatDays.includes(day)
+      ? repeatDays.filter((d) => d !== day)
+      : [...repeatDays, day].sort((a, b) => a - b)
+    onChange({ ...event, repeatDays: next })
+  }
+
   function save(): void {
     let e = end
     if (e <= start) e = new Date(start.getTime() + 30 * 60_000)
@@ -92,11 +100,12 @@ export default function EventPanel({
       title: event.title.trim() || 'Untitled',
       description: event.description?.trim(),
       end: e.toISOString(),
-      repeat
+      repeat,
+      repeatDays: repeat === 'weekdays' ? repeatDays : undefined
     }
     // Only a brand-new event expands into a series; editing an existing one
     // saves just that occurrence so the rest of the series is left untouched.
-    onSave(isNew ? expandSeries(base, repeat === 'none' ? 1 : count) : [base])
+    onSave(isNew ? expandSeries(base) : [base])
   }
 
   return (
@@ -148,12 +157,12 @@ export default function EventPanel({
       </div>
 
       {isNew ? (
-        <div className="field-row">
+        <>
           <label className="field">
             <span>Repeat</span>
             <select
               value={repeat}
-              onChange={(e) => onChange({ ...event, repeat: e.target.value as CalendarRepeat })}
+              onChange={(e) => changeRepeat(e.target.value as CalendarRepeat)}
             >
               {REPEAT_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -162,24 +171,29 @@ export default function EventPanel({
               ))}
             </select>
           </label>
-          {repeat !== 'none' && (
-            <label className="field">
-              <span>Occurrences</span>
-              <input
-                type="number"
-                min={1}
-                max={MAX_OCCURRENCES}
-                value={count}
-                onChange={(e) => setCount(Number(e.target.value))}
-              />
-            </label>
+          {repeat === 'weekdays' && (
+            <div className="field">
+              <span>Repeat on</span>
+              <div className="weekday-picker">
+                {WEEKDAYS.map((label, day) => (
+                  <button
+                    key={day}
+                    type="button"
+                    className={repeatDays.includes(day) ? 'weekday-chip active' : 'weekday-chip'}
+                    onClick={() => toggleDay(day)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
-        </div>
+        </>
       ) : (
         event.seriesId && (
           <label className="field">
             <span>Repeat</span>
-            <div className="repeat-note">🔁 {repeatLabel(repeat)} series</div>
+            <div className="repeat-note">🔁 {repeatLabel(repeat, event.repeatDays)} series</div>
           </label>
         )
       )}
@@ -189,7 +203,11 @@ export default function EventPanel({
       </div>
 
       <div className="modal-actions">
-        <button className="btn primary" onClick={save}>
+        <button
+          className="btn primary"
+          disabled={repeat === 'weekdays' && repeatDays.length === 0}
+          onClick={save}
+        >
           Save
         </button>
         {!isNew && (

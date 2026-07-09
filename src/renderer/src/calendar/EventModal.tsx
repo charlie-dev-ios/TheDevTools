@@ -7,15 +7,10 @@ import {
   hmOfMinutes,
   minutesOfHM,
   toDateInput,
-  toTimeInput
+  toTimeInput,
+  WEEKDAYS
 } from './date-utils'
-import {
-  DEFAULT_OCCURRENCES,
-  MAX_OCCURRENCES,
-  REPEAT_OPTIONS,
-  expandSeries,
-  repeatLabel
-} from './event-utils'
+import { REPEAT_OPTIONS, expandSeries, repeatLabel } from './event-utils'
 
 interface Props {
   event: CalendarEvent
@@ -45,13 +40,27 @@ export default function EventModal({
   const [startTime, setStartTime] = useState(toTimeInput(start))
   const [endTime, setEndTime] = useState(toTimeInput(end))
   const [repeat, setRepeat] = useState<CalendarRepeat>(event.repeat ?? 'none')
-  const [count, setCount] = useState(DEFAULT_OCCURRENCES)
+  const [repeatDays, setRepeatDays] = useState<number[]>(event.repeatDays ?? [])
 
   // Changing the start keeps the current duration and shifts the end with it.
   function changeStart(value: string): void {
     const duration = Math.max(5, minutesOfHM(endTime) - minutesOfHM(startTime))
     setStartTime(value)
     setEndTime(hmOfMinutes(Math.min(minutesOfHM(value) + duration, DAY_MAX)))
+  }
+
+  function toggleDay(day: number): void {
+    setRepeatDays((days) =>
+      days.includes(day) ? days.filter((d) => d !== day) : [...days, day].sort((a, b) => a - b)
+    )
+  }
+
+  function changeRepeat(value: CalendarRepeat): void {
+    setRepeat(value)
+    // Seed the weekday picker with the event's own weekday the first time.
+    if (value === 'weekdays' && repeatDays.length === 0) {
+      setRepeatDays([fromDateTimeInputs(date, startTime).getDay()])
+    }
   }
 
   function save(): void {
@@ -64,11 +73,12 @@ export default function EventModal({
       description: description.trim(),
       start: s.toISOString(),
       end: e.toISOString(),
-      repeat
+      repeat,
+      repeatDays: repeat === 'weekdays' ? repeatDays : undefined
     }
     // Only a brand-new event expands into a series; editing an existing one
     // saves just that occurrence so the rest of the series is left untouched.
-    onSave(isNew ? expandSeries(base, repeat === 'none' ? 1 : count) : [base])
+    onSave(isNew ? expandSeries(base) : [base])
   }
 
   return (
@@ -116,12 +126,12 @@ export default function EventModal({
         </div>
 
         {isNew ? (
-          <div className="field-row">
+          <>
             <label className="field">
               <span>Repeat</span>
               <select
                 value={repeat}
-                onChange={(e) => setRepeat(e.target.value as CalendarRepeat)}
+                onChange={(e) => changeRepeat(e.target.value as CalendarRepeat)}
               >
                 {REPEAT_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
@@ -130,30 +140,41 @@ export default function EventModal({
                 ))}
               </select>
             </label>
-            {repeat !== 'none' && (
-              <label className="field">
-                <span>Occurrences</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={MAX_OCCURRENCES}
-                  value={count}
-                  onChange={(e) => setCount(Number(e.target.value))}
-                />
-              </label>
+            {repeat === 'weekdays' && (
+              <div className="field">
+                <span>Repeat on</span>
+                <div className="weekday-picker">
+                  {WEEKDAYS.map((label, day) => (
+                    <button
+                      key={day}
+                      type="button"
+                      className={repeatDays.includes(day) ? 'weekday-chip active' : 'weekday-chip'}
+                      onClick={() => toggleDay(day)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
-          </div>
+          </>
         ) : (
           event.seriesId && (
             <div className="field">
               <span>Repeat</span>
-              <div className="repeat-note">🔁 {repeatLabel(event.repeat ?? 'none')} series</div>
+              <div className="repeat-note">
+                🔁 {repeatLabel(event.repeat ?? 'none', event.repeatDays)} series
+              </div>
             </div>
           )
         )}
 
         <div className="modal-actions">
-          <button className="btn primary" onClick={save}>
+          <button
+            className="btn primary"
+            disabled={repeat === 'weekdays' && repeatDays.length === 0}
+            onClick={save}
+          >
             Save
           </button>
           {!isNew && (

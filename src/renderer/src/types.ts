@@ -45,7 +45,7 @@ export interface TimeEntry {
 }
 
 /** How a calendar event repeats. */
-export type CalendarRepeat = 'none' | 'daily' | 'weekly' | 'monthly'
+export type CalendarRepeat = 'none' | 'daily' | 'weekly' | 'monthly' | 'weekdays'
 
 export interface CalendarEvent {
   id: string
@@ -58,6 +58,8 @@ export interface CalendarEvent {
   end: string
   /** How this event repeats. Absent/`'none'` for a one-off event. */
   repeat?: CalendarRepeat
+  /** Weekdays the event repeats on (0=Sun … 6=Sat) when repeat === 'weekdays'. */
+  repeatDays?: number[]
   /** Shared id linking every occurrence generated from the same series. */
   seriesId?: string
 }
