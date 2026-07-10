@@ -44,6 +44,24 @@ export interface TimeEntry {
   seconds: number
 }
 
+export interface Project {
+  id: string
+  /** Display name of the project. */
+  name: string
+  /** Optional free-text description. */
+  description?: string
+  /** Optional hex color for the project's chip. */
+  color?: string
+}
+
+export interface Hashtag {
+  id: string
+  /** Tag name, stored without the leading '#'. */
+  name: string
+  /** Optional hex color for the hashtag's chip. */
+  color?: string
+}
+
 /** How a calendar event repeats. */
 export type CalendarRepeat = 'none' | 'daily' | 'weekly' | 'monthly' | 'weekdays'
 

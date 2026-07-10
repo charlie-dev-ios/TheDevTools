@@ -25,10 +25,16 @@ import {
   saveTodos,
   getTimeEntries,
   saveTimeEntries,
+  getProjects,
+  saveProjects,
+  getHashtags,
+  saveHashtags,
   type Snippet,
   type CalendarEvent,
   type Todo,
-  type TimeEntry
+  type TimeEntry,
+  type Project,
+  type Hashtag
 } from './store.js'
 
 const POLL_INTERVAL_MS = 800
@@ -265,6 +271,16 @@ function registerIpc(): void {
   ipcMain.handle('time-entries:save', (_event, entries: TimeEntry[]) => {
     saveTimeEntries(entries)
     return getTimeEntries()
+  })
+  ipcMain.handle('projects:get', () => getProjects())
+  ipcMain.handle('projects:save', (_event, projects: Project[]) => {
+    saveProjects(projects)
+    return getProjects()
+  })
+  ipcMain.handle('hashtags:get', () => getHashtags())
+  ipcMain.handle('hashtags:save', (_event, hashtags: Hashtag[]) => {
+    saveHashtags(hashtags)
+    return getHashtags()
   })
   ipcMain.handle('clipboard:copy', (_event, text: string) => copyToClipboard(text))
   ipcMain.handle('paste', (_event, text: string) => pasteFromLauncher(text))
