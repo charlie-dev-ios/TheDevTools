@@ -478,6 +478,29 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* The progress badge doubles as a subtask collapse/expand toggle. */
+.todo-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  cursor: pointer;
+}
+
+.todo-toggle:hover {
+  background: rgba(76, 139, 245, 0.28);
+}
+
+.todo-toggle-caret {
+  display: inline-block;
+  font-size: 8px;
+  transition: transform 0.15s ease;
+}
+
+.todo-toggle.expanded .todo-toggle-caret {
+  transform: rotate(90deg);
+}
+
 .todo-subtasks {
   list-style: none;
   margin: 0;
