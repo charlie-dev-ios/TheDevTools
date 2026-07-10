@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import type { TimeEntry, Todo } from '../types'
 import TimeStepper from '../calendar/TimeStepper'
+import AutocompleteInput from '../components/AutocompleteInput'
 import {
   fromDateTimeInputs,
   hmOfMinutes,
@@ -8,6 +10,12 @@ import {
   toTimeInput
 } from '../calendar/date-utils'
 import { normalizeHashtag, type TimeEntryDraft } from './entry-utils'
+import {
+  hashtagSuggestions,
+  projectSuggestions,
+  subtaskSuggestions,
+  taskSuggestions
+} from './suggestions'
 
 const DAY_MAX = 24 * 60 - 5
 
@@ -49,6 +57,23 @@ export default function ManualEntryModal({
   const [subtask, setSubtask] = useState(initialSubtask ?? '')
   const [project, setProject] = useState(initialProject ?? '')
   const [hashtag, setHashtag] = useState(initialHashtag ?? '')
+  const [todos, setTodos] = useState<Todo[]>([])
+  const [entries, setEntries] = useState<TimeEntry[]>([])
+
+  // Load the sources backing the field autocompletes (todos/subtasks for
+  // task/subtask, past entries for project/hashtag).
+  useEffect(() => {
+    window.api.getTodos().then(setTodos)
+    window.api.getTimeEntries().then(setEntries)
+  }, [])
+
+  const taskSugs = useMemo(() => taskSuggestions(todos, task), [todos, task])
+  const subtaskSugs = useMemo(
+    () => subtaskSuggestions(todos, task, subtask),
+    [todos, task, subtask]
+  )
+  const projectSugs = useMemo(() => projectSuggestions(entries, project), [entries, project])
+  const hashtagSugs = useMemo(() => hashtagSuggestions(entries, hashtag), [entries, hashtag])
   const [date, setDate] = useState(() => toDateInput(initialStart ?? new Date()))
   // Default to the past hour so the fields land near what was just worked on.
   const [startTime, setStartTime] = useState(() =>
@@ -86,36 +111,44 @@ export default function ManualEntryModal({
         <div className="modal-heading">{editing ? 'Edit time entry' : 'Add time entry'}</div>
         <label className="field">
           Task
-          <input
+          <AutocompleteInput
             autoFocus
             value={task}
+            onChange={setTask}
+            suggestions={taskSugs}
             placeholder="What did you work on?"
-            onChange={(e) => setTask(e.target.value)}
+            onFocusRefresh={() => window.api.getTodos().then(setTodos)}
           />
         </label>
         <label className="field">
           Subtask (optional)
-          <input
+          <AutocompleteInput
             value={subtask}
+            onChange={setSubtask}
+            suggestions={subtaskSugs}
             placeholder="Which part of it?"
-            onChange={(e) => setSubtask(e.target.value)}
+            onFocusRefresh={() => window.api.getTodos().then(setTodos)}
           />
         </label>
         <div className="field-row">
           <label className="field">
             Project (optional)
-            <input
+            <AutocompleteInput
               value={project}
+              onChange={setProject}
+              suggestions={projectSugs}
               placeholder="Which project?"
-              onChange={(e) => setProject(e.target.value)}
+              onFocusRefresh={() => window.api.getTimeEntries().then(setEntries)}
             />
           </label>
           <label className="field">
             Hashtag (optional)
-            <input
+            <AutocompleteInput
               value={hashtag}
+              onChange={setHashtag}
+              suggestions={hashtagSugs}
               placeholder="#tag"
-              onChange={(e) => setHashtag(e.target.value)}
+              onFocusRefresh={() => window.api.getTimeEntries().then(setEntries)}
             />
           </label>
         </div>
