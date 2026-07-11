@@ -34,6 +34,17 @@ function dueStatus(due: string): 'overdue' | 'today' | 'upcoming' {
 export default function TodoView(): JSX.Element {
   const [todos, setTodos] = useState<Todo[]>([])
   const [editing, setEditing] = useState<Todo | 'new' | null>(null)
+  // Todos whose subtasks are expanded; collapsed is the default so the list
+  // stays compact until you drill into one.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+
+  function toggleExpanded(id: string): void {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
 
   useEffect(() => {
     window.api.getTodos().then(setTodos)
@@ -132,6 +143,8 @@ export default function TodoView(): JSX.Element {
                 <TodoRow
                   key={t.id}
                   todo={t}
+                  expanded={expanded.has(t.id)}
+                  onToggleExpand={toggleExpanded}
                   onToggle={toggle}
                   onToggleSubtask={toggleSubtask}
                   onEdit={setEditing}
@@ -154,6 +167,8 @@ export default function TodoView(): JSX.Element {
                   <TodoRow
                     key={t.id}
                     todo={t}
+                    expanded={expanded.has(t.id)}
+                    onToggleExpand={toggleExpanded}
                     onToggle={toggle}
                     onToggleSubtask={toggleSubtask}
                     onEdit={setEditing}
@@ -179,12 +194,16 @@ export default function TodoView(): JSX.Element {
 
 function TodoRow({
   todo,
+  expanded,
+  onToggleExpand,
   onToggle,
   onToggleSubtask,
   onEdit,
   onRemove
 }: {
   todo: Todo
+  expanded: boolean
+  onToggleExpand: (id: string) => void
   onToggle: (todo: Todo) => void
   onToggleSubtask: (todo: Todo, subtaskId: string) => void
   onEdit: (todo: Todo) => void
@@ -209,9 +228,21 @@ function TodoRow({
         />
         <span className="row-text todo-title">{todo.title}</span>
         {subtasks.length > 0 && (
-          <span className="todo-progress" title={`Subtasks: ${doneCount}/${subtasks.length} done`}>
+          <button
+            type="button"
+            className={expanded ? 'todo-progress todo-toggle expanded' : 'todo-progress todo-toggle'}
+            title={expanded ? 'Hide subtasks' : 'Show subtasks'}
+            aria-expanded={expanded}
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleExpand(todo.id)
+            }}
+          >
+            <span className="todo-toggle-caret" aria-hidden="true">
+              ▶
+            </span>
             ☑ {doneCount}/{subtasks.length}
-          </span>
+          </button>
         )}
         {todo.repeat !== 'none' && (
           <span
@@ -247,7 +278,7 @@ function TodoRow({
           </button>
         </span>
       </div>
-      {subtasks.length > 0 && (
+      {subtasks.length > 0 && expanded && (
         <ul className="todo-subtasks">
           {subtasks.map((s) => (
             <li key={s.id} className={s.completed ? 'subtask-row done' : 'subtask-row'}>
