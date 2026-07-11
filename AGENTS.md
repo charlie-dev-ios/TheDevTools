@@ -13,7 +13,7 @@ React 18 + TypeScript**, bundled by **electron-vite**. It has two UI surfaces:
 - **Quick launcher** — a frameless, always-on-top floating panel toggled with
   `⌘⇧V` for fast clipboard/snippet paste into the previously focused app.
 - **Main window** — opened from the tray; a sidebar shell with Calendar, Todos,
-  Time Tracking, Clipboard History and Snippets.
+  Time Tracking, Aggregation, Projects, Hashtags, Clipboard History and Snippets.
 
 The app is macOS-first: it lives in the menu bar (`Tray`), hides the dock icon
 until the main window opens, and pastes by simulating `⌘V` via AppleScript
@@ -72,6 +72,8 @@ src/
       todo/            TodoView
       timetracking/    TimeTrackingView, manual entry modal, utils
       aggregation/     AggregationView (tracked-effort totals)
+      project/         ProjectsView (project CRUD)
+      hashtag/         HashtagsView (hashtag CRUD)
       components/      SnippetEditor
 ```
 

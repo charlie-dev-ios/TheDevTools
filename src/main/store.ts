@@ -68,19 +68,49 @@ export interface TimeEntry {
   seconds: number
 }
 
+export interface Project {
+  id: string
+  /** Display name of the project. */
+  name: string
+  /** Optional free-text description. */
+  description?: string
+  /** Optional hex color for the project's chip. */
+  color?: string
+}
+
+export interface Hashtag {
+  id: string
+  /** Tag name, stored without the leading '#'. */
+  name: string
+  /** Optional hex color for the hashtag's chip. */
+  color?: string
+}
+
 interface Data {
   history: string[]
   snippets: Snippet[]
   events: CalendarEvent[]
   todos: Todo[]
   timeEntries: TimeEntry[]
+  projects: Project[]
+  hashtags: Hashtag[]
 }
 
 const MAX_HISTORY = 200
 
 const filePath = join(app.getPath('userData'), 'thedevtools-data.json')
 
-let data: Data = { history: [], snippets: [], events: [], todos: [], timeEntries: [] }
+const emptyData = (): Data => ({
+  history: [],
+  snippets: [],
+  events: [],
+  todos: [],
+  timeEntries: [],
+  projects: [],
+  hashtags: []
+})
+
+let data: Data = emptyData()
 
 export function load(): void {
   try {
@@ -91,12 +121,14 @@ export function load(): void {
         snippets: Array.isArray(parsed.snippets) ? parsed.snippets : [],
         events: Array.isArray(parsed.events) ? parsed.events : [],
         todos: Array.isArray(parsed.todos) ? parsed.todos : [],
-        timeEntries: Array.isArray(parsed.timeEntries) ? parsed.timeEntries : []
+        timeEntries: Array.isArray(parsed.timeEntries) ? parsed.timeEntries : [],
+        projects: Array.isArray(parsed.projects) ? parsed.projects : [],
+        hashtags: Array.isArray(parsed.hashtags) ? parsed.hashtags : []
       }
     }
   } catch (err) {
     console.error('Failed to load data, starting fresh:', err)
-    data = { history: [], snippets: [], events: [], todos: [], timeEntries: [] }
+    data = emptyData()
   }
 }
 
@@ -250,5 +282,23 @@ export function getTimeEntries(): TimeEntry[] {
 
 export function saveTimeEntries(timeEntries: TimeEntry[]): void {
   data.timeEntries = timeEntries
+  persist()
+}
+
+export function getProjects(): Project[] {
+  return data.projects
+}
+
+export function saveProjects(projects: Project[]): void {
+  data.projects = projects
+  persist()
+}
+
+export function getHashtags(): Hashtag[] {
+  return data.hashtags
+}
+
+export function saveHashtags(hashtags: Hashtag[]): void {
+  data.hashtags = hashtags
   persist()
 }

@@ -41,6 +41,19 @@ export interface TimeEntry {
   seconds: number
 }
 
+export interface Project {
+  id: string
+  name: string
+  description?: string
+  color?: string
+}
+
+export interface Hashtag {
+  id: string
+  name: string
+  color?: string
+}
+
 const api = {
   getHistory: (): Promise<string[]> => ipcRenderer.invoke('history:get'),
   clearHistory: (): Promise<string[]> => ipcRenderer.invoke('history:clear'),
@@ -57,6 +70,12 @@ const api = {
   getTimeEntries: (): Promise<TimeEntry[]> => ipcRenderer.invoke('time-entries:get'),
   saveTimeEntries: (entries: TimeEntry[]): Promise<TimeEntry[]> =>
     ipcRenderer.invoke('time-entries:save', entries),
+  getProjects: (): Promise<Project[]> => ipcRenderer.invoke('projects:get'),
+  saveProjects: (projects: Project[]): Promise<Project[]> =>
+    ipcRenderer.invoke('projects:save', projects),
+  getHashtags: (): Promise<Hashtag[]> => ipcRenderer.invoke('hashtags:get'),
+  saveHashtags: (hashtags: Hashtag[]): Promise<Hashtag[]> =>
+    ipcRenderer.invoke('hashtags:save', hashtags),
   // Copy without moving focus (used by the main window).
   copy: (text: string): Promise<void> => ipcRenderer.invoke('clipboard:copy', text),
   // Insert text into the app that was focused before the launcher opened.

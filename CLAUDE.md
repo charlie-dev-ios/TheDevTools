@@ -97,12 +97,13 @@ src/
 ### Persisted data model
 
 `store.ts` owns the on-disk shape: `{ history, snippets, events, todos,
-timeEntries }`. Renderers read/write whole arrays via the `save*`/`get*` IPC
-methods (e.g. `saveTodos(todos)` replaces the entire list). Key entities are
-`Snippet`, `CalendarEvent` (with optional `repeat`/`seriesId`), `Todo` (with
-`repeat`/`repeatDays`/`subtasks`) and `TimeEntry` (task/subtask/project/hashtag
-+ tracked `seconds`). Clipboard history is a capped (`MAX_HISTORY = 200`),
-deduped, most-recent-first `string[]`.
+timeEntries, projects, hashtags }`. Renderers read/write whole arrays via the
+`save*`/`get*` IPC methods (e.g. `saveTodos(todos)` replaces the entire list).
+Key entities are `Snippet`, `CalendarEvent` (with optional `repeat`/`seriesId`),
+`Todo` (with `repeat`/`repeatDays`/`subtasks`), `TimeEntry`
+(task/subtask/project/hashtag + tracked `seconds`), and the standalone `Project`
+(name/description/color) and `Hashtag` (name/color) catalogs. Clipboard history
+is a capped (`MAX_HISTORY = 200`), deduped, most-recent-first `string[]`.
 
 ## Conventions
 

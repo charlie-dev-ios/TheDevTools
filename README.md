@@ -10,7 +10,7 @@ The app has two surfaces:
 - **Quick launcher** — a floating panel on `⌘⇧V` for fast paste.
 - **Main window** — a normal window (menu-bar icon → *Open TheDevTools*) with a
   sidebar: **Calendar**, **Todos**, **Time Tracking**, **Aggregation**,
-  **Clipboard History**, **Snippets**.
+  **Projects**, **Hashtags**, **Clipboard History**, **Snippets**.
 
 ## Features
 
@@ -60,6 +60,12 @@ The app has two surfaces:
   prev/next/today navigation.
 - 📈 Each bucket shows its total effort, a proportional bar, entry count and
   share of the period.
+
+### Projects & Hashtags
+- 📁 **Projects** — create, edit and delete named projects (with an optional
+  description and color) used to organize time entries.
+- #️⃣ **Hashtags** — manage a color-coded set of tags; names are normalized
+  (leading `#` stripped) and kept case-insensitively unique.
 
 ### Shared
 - 📋 **Clipboard history** — automatically records text you copy (deduped, most
@@ -111,7 +117,8 @@ Nothing appears on launch except the 📋 menu-bar icon.
   clicking away hides it.
 - **Main window (calendar & tools):** click the menu-bar icon, or right-click it
   and choose *Open TheDevTools*. Use the sidebar to switch between Calendar,
-  Todos, Time Tracking, Clipboard History and Snippets.
+  Todos, Time Tracking, Aggregation, Projects, Hashtags, Clipboard History and
+  Snippets.
 
 ## Building a distributable
 
@@ -159,6 +166,10 @@ src/
         entry-utils.ts       time-entry draft helpers
       aggregation/
         AggregationView.tsx  tracked-effort totals by task/project/hashtag
+      project/
+        ProjectsView.tsx     project CRUD (name, description, color)
+      hashtag/
+        HashtagsView.tsx     hashtag CRUD (name, color)
       components/
         SnippetEditor.tsx
 ```
