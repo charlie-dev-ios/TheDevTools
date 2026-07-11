@@ -707,8 +707,12 @@ body {
   gap: 8px;
 }
 
-.timer-meta .meta-input {
+/* The meta inputs are wrapped in .autocomplete, so the wrapper carries the flex. */
+.timer-meta .autocomplete {
   flex: 1;
+}
+
+.timer-meta .meta-input {
   font-size: 13px;
   padding: 8px 12px;
 }

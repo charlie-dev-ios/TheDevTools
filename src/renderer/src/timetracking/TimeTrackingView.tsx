@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { TimeEntry, Todo } from '../types'
 import { formatTime } from '../calendar/date-utils'
+import AutocompleteInput from '../components/AutocompleteInput'
 import ManualEntryModal from './ManualEntryModal'
 import {
   applyEntryEdit,
@@ -8,10 +9,14 @@ import {
   normalizeHashtag,
   type TimeEntryDraft
 } from './entry-utils'
+import {
+  hashtagSuggestions,
+  projectSuggestions,
+  subtaskSuggestions,
+  taskSuggestions
+} from './suggestions'
 
 type TimerStatus = 'idle' | 'running' | 'paused'
-
-const MAX_SUGGESTIONS = 8
 
 function pad(n: number): string {
   return n.toString().padStart(2, '0')
@@ -44,8 +49,6 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
   // Start of the segment currently running, null while paused/idle.
   const [segmentStart, setSegmentStart] = useState<Date | null>(null)
   const [now, setNow] = useState<Date>(() => new Date())
-  const [showSuggestions, setShowSuggestions] = useState(false)
-  const [showSubtaskSuggestions, setShowSubtaskSuggestions] = useState(false)
   const [addingEntry, setAddingEntry] = useState(false)
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null)
 
@@ -71,37 +74,13 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
       ? (now.getTime() - segmentStart.getTime()) / 1000
       : 0)
 
-  // Incomplete todos (overdue ones included) matching the typed text.
-  const suggestions = useMemo(() => {
-    const query = task.trim().toLowerCase()
-    const seen = new Set<string>()
-    return todos
-      .filter((t) => !t.completed)
-      .sort((a, b) => a.due.localeCompare(b.due) || a.title.localeCompare(b.title))
-      .filter((t) => {
-        if (!t.title.toLowerCase().includes(query) || seen.has(t.title)) return false
-        seen.add(t.title)
-        return true
-      })
-      .slice(0, MAX_SUGGESTIONS)
-  }, [todos, task])
-
-  // Incomplete subtasks of the todo whose title matches the task, matching the typed text.
-  const subtaskSuggestions = useMemo(() => {
-    const taskName = task.trim().toLowerCase()
-    const query = subtask.trim().toLowerCase()
-    if (!taskName) return []
-    const seen = new Set<string>()
-    return todos
-      .filter((t) => !t.completed && t.title.trim().toLowerCase() === taskName)
-      .flatMap((t) => t.subtasks ?? [])
-      .filter((s) => {
-        if (s.completed || !s.title.toLowerCase().includes(query) || seen.has(s.title)) return false
-        seen.add(s.title)
-        return true
-      })
-      .slice(0, MAX_SUGGESTIONS)
-  }, [todos, task, subtask])
+  const taskSugs = useMemo(() => taskSuggestions(todos, task), [todos, task])
+  const subtaskSugs = useMemo(
+    () => subtaskSuggestions(todos, task, subtask),
+    [todos, task, subtask]
+  )
+  const projectSugs = useMemo(() => projectSuggestions(entries, project), [entries, project])
+  const hashtagSugs = useMemo(() => hashtagSuggestions(entries, hashtag), [entries, hashtag])
 
   // Entries are also written from the Calendar tab's Actual lane, so apply
   // changes to a fresh copy instead of trusting the local one.
@@ -120,8 +99,6 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
     setAccumulated(0)
     setNow(t)
     setStatus('running')
-    setShowSuggestions(false)
-    setShowSubtaskSuggestions(false)
   }
 
   function start(): void {
@@ -216,97 +193,46 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
       </header>
 
       <div className="timer-card">
-        <div className="autocomplete">
-          <input
-            className="task-input"
-            value={task}
-            disabled={!idle}
-            placeholder="What are you working on?"
-            onChange={(e) => {
-              setTask(e.target.value)
-              setShowSuggestions(true)
-            }}
-            onFocus={() => {
-              // Refresh so todos added on the Todos tab show up.
-              window.api.getTodos().then(setTodos)
-              setShowSuggestions(true)
-            }}
-            onBlur={() => setShowSuggestions(false)}
-          />
-          {idle && showSuggestions && suggestions.length > 0 && (
-            <ul className="suggestions">
-              {suggestions.map((t) => (
-                <li key={t.id}>
-                  <button
-                    type="button"
-                    // Keep the input's blur from closing the list before the click lands.
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      setTask(t.title)
-                      setShowSuggestions(false)
-                    }}
-                  >
-                    <span className="suggestion-title">{t.title}</span>
-                    <span className="suggestion-due">{t.due}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <AutocompleteInput
+          inputClassName="task-input"
+          value={task}
+          onChange={setTask}
+          suggestions={taskSugs}
+          disabled={!idle}
+          placeholder="What are you working on?"
+          // Refresh so todos added on the Todos tab show up.
+          onFocusRefresh={() => window.api.getTodos().then(setTodos)}
+        />
 
-        <div className="autocomplete">
-          <input
-            className="task-input subtask-input"
-            value={subtask}
-            disabled={!idle}
-            placeholder="Subtask (optional)"
-            onChange={(e) => {
-              setSubtask(e.target.value)
-              setShowSubtaskSuggestions(true)
-            }}
-            onFocus={() => {
-              // Refresh so subtasks added on the Todos tab show up.
-              window.api.getTodos().then(setTodos)
-              setShowSubtaskSuggestions(true)
-            }}
-            onBlur={() => setShowSubtaskSuggestions(false)}
-          />
-          {idle && showSubtaskSuggestions && subtaskSuggestions.length > 0 && (
-            <ul className="suggestions">
-              {subtaskSuggestions.map((s) => (
-                <li key={s.id}>
-                  <button
-                    type="button"
-                    // Keep the input's blur from closing the list before the click lands.
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      setSubtask(s.title)
-                      setShowSubtaskSuggestions(false)
-                    }}
-                  >
-                    <span className="suggestion-title">{s.title}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <AutocompleteInput
+          inputClassName="task-input subtask-input"
+          value={subtask}
+          onChange={setSubtask}
+          suggestions={subtaskSugs}
+          disabled={!idle}
+          placeholder="Subtask (optional)"
+          // Refresh so subtasks added on the Todos tab show up.
+          onFocusRefresh={() => window.api.getTodos().then(setTodos)}
+        />
 
         <div className="timer-meta">
-          <input
-            className="task-input meta-input"
+          <AutocompleteInput
+            inputClassName="task-input meta-input"
             value={project}
+            onChange={setProject}
+            suggestions={projectSugs}
             disabled={!idle}
             placeholder="Project (optional)"
-            onChange={(e) => setProject(e.target.value)}
+            onFocusRefresh={() => window.api.getTimeEntries().then(setEntries)}
           />
-          <input
-            className="task-input meta-input"
+          <AutocompleteInput
+            inputClassName="task-input meta-input"
             value={hashtag}
+            onChange={setHashtag}
+            suggestions={hashtagSugs}
             disabled={!idle}
             placeholder="#hashtag (optional)"
-            onChange={(e) => setHashtag(e.target.value)}
+            onFocusRefresh={() => window.api.getTimeEntries().then(setEntries)}
           />
         </div>
 
