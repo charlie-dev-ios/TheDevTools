@@ -10,13 +10,14 @@ import {
   toTimeInput,
   WEEKDAYS
 } from './date-utils'
-import { REPEAT_OPTIONS, expandSeries, repeatLabel } from './event-utils'
+import { REPEAT_OPTIONS } from './event-utils'
 
 interface Props {
   event: CalendarEvent
   isNew: boolean
   onChange: (event: CalendarEvent) => void
-  onSave: (events: CalendarEvent[]) => void
+  /** Receives the edited base event; the parent expands/rebuilds the series. */
+  onSave: (base: CalendarEvent) => void
   onDelete: (id: string) => void
   onDeleteSeries: (seriesId: string) => void
   onCancel: () => void
@@ -103,9 +104,7 @@ export default function EventPanel({
       repeat,
       repeatDays: repeat === 'weekdays' ? repeatDays : undefined
     }
-    // Only a brand-new event expands into a series; editing an existing one
-    // saves just that occurrence so the rest of the series is left untouched.
-    onSave(isNew ? expandSeries(base) : [base])
+    onSave(base)
   }
 
   return (
@@ -156,46 +155,37 @@ export default function EventPanel({
         />
       </div>
 
-      {isNew ? (
-        <>
-          <label className="field">
-            <span>Repeat</span>
-            <select
-              value={repeat}
-              onChange={(e) => changeRepeat(e.target.value as CalendarRepeat)}
-            >
-              {REPEAT_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          {repeat === 'weekdays' && (
-            <div className="field">
-              <span>Repeat on</span>
-              <div className="weekday-picker">
-                {WEEKDAYS.map((label, day) => (
-                  <button
-                    key={day}
-                    type="button"
-                    className={repeatDays.includes(day) ? 'weekday-chip active' : 'weekday-chip'}
-                    onClick={() => toggleDay(day)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
-      ) : (
-        event.seriesId && (
-          <label className="field">
-            <span>Repeat</span>
-            <div className="repeat-note">🔁 {repeatLabel(repeat, event.repeatDays)} series</div>
-          </label>
-        )
+      <label className="field">
+        <span>Repeat</span>
+        <select value={repeat} onChange={(e) => changeRepeat(e.target.value as CalendarRepeat)}>
+          {REPEAT_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      {repeat === 'weekdays' && (
+        <div className="field">
+          <span>Repeat on</span>
+          <div className="weekday-picker">
+            {WEEKDAYS.map((label, day) => (
+              <button
+                key={day}
+                type="button"
+                className={repeatDays.includes(day) ? 'weekday-chip active' : 'weekday-chip'}
+                onClick={() => toggleDay(day)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {!isNew && (
+        <div className="repeat-note">
+          Changing the repeat rebuilds the series from this occurrence.
+        </div>
       )}
 
       <div className="panel-hint">

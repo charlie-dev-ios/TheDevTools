@@ -5,6 +5,7 @@ import DayView from './DayView'
 import EventModal from './EventModal'
 import EventPanel from './EventPanel'
 import ManualEntryModal from '../timetracking/ManualEntryModal'
+import { expandSeries } from './event-utils'
 import {
   applyEntryEdit,
   entryFromDraft,
@@ -47,6 +48,8 @@ function loadInitialHourHeight(): number {
 interface Editing {
   event: CalendarEvent
   isNew: boolean
+  /** Snapshot of the event as it was opened, to detect repeat-rule changes. */
+  original?: CalendarEvent
 }
 
 export default function CalendarView(): JSX.Element {
@@ -182,6 +185,41 @@ export default function CalendarView(): JSX.Element {
     setDraft(null)
   }
 
+  // True when the repeat rule (kind or selected weekdays) differs.
+  function repeatRuleChanged(a: CalendarEvent, b: CalendarEvent): boolean {
+    if ((a.repeat ?? 'none') !== (b.repeat ?? 'none')) return true
+    const days = (e: CalendarEvent): string =>
+      [...(e.repeatDays ?? [])].sort((x, y) => x - y).join(',')
+    return days(a) !== days(b)
+  }
+
+  // Commit a create/edit from the modal or panel. New events expand into a
+  // series; edits that leave the repeat rule untouched save just that
+  // occurrence (the rest of the series is left alone). Editing the repeat rule
+  // rebuilds the series from this occurrence, dropping the previous rule's
+  // occurrences — setting it to "none" collapses the series to this one event.
+  function commitEvent(base: CalendarEvent, isNew: boolean, original?: CalendarEvent): void {
+    if (isNew) {
+      upsertMany(expandSeries(base))
+      return
+    }
+    if (original && !repeatRuleChanged(original, base)) {
+      upsertMany([base])
+      return
+    }
+    const oldSeriesId = original?.seriesId
+    const rest = oldSeriesId
+      ? events.filter((e) => e.seriesId !== oldSeriesId)
+      : events.filter((e) => e.id !== base.id)
+    const next =
+      (base.repeat ?? 'none') === 'none'
+        ? [...rest, { ...base, repeat: 'none' as const, repeatDays: undefined, seriesId: undefined }]
+        : [...rest, ...expandSeries(base)]
+    void persist(next)
+    setEditing(null)
+    setDraft(null)
+  }
+
   function remove(id: string): void {
     void persist(events.filter((e) => e.id !== id))
     setEditing(null)
@@ -295,7 +333,7 @@ export default function CalendarView(): JSX.Element {
               setCursor(day)
               setMode('day')
             }}
-            onSelect={(event) => setEditing({ event, isNew: false })}
+            onSelect={(event) => setEditing({ event, isNew: false, original: event })}
             onSelectTracked={selectTracked}
           />
         ) : (
@@ -317,7 +355,9 @@ export default function CalendarView(): JSX.Element {
               onCreateActualAt={(start) =>
                 setAddingActual({ start, end: addMinutes(start, DEFAULT_EVENT_MINUTES) })
               }
-              onSelect={(event) => setDraft({ event: { ...event }, isNew: false })}
+              onSelect={(event) =>
+                setDraft({ event: { ...event }, isNew: false, original: { ...event } })
+              }
               onSelectTracked={selectTracked}
             />
             {draft && (
@@ -325,7 +365,7 @@ export default function CalendarView(): JSX.Element {
                 event={draft.event}
                 isNew={draft.isNew}
                 onChange={(event) => setDraft((d) => (d ? { ...d, event } : d))}
-                onSave={upsertMany}
+                onSave={(base) => commitEvent(base, draft.isNew, draft.original)}
                 onDelete={remove}
                 onDeleteSeries={removeSeries}
                 onCancel={() => setDraft(null)}
@@ -365,7 +405,7 @@ export default function CalendarView(): JSX.Element {
         <EventModal
           event={editing.event}
           isNew={editing.isNew}
-          onSave={upsertMany}
+          onSave={(base) => commitEvent(base, editing.isNew, editing.original)}
           onDelete={remove}
           onDeleteSeries={removeSeries}
           onClose={() => setEditing(null)}
