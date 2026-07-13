@@ -1379,6 +1379,16 @@ body {
   font-weight: 600;
 }
 
+/* Same dashed placeholder, in the actual lane's color, for a time entry. */
+.event.draft.actual {
+  background: rgba(52, 168, 83, 0.16);
+  border-color: var(--actual);
+}
+
+.event.draft.actual .event-time {
+  color: var(--actual);
+}
+
 /* ---------- Event side panel (day view) ---------- */
 .event-panel {
   flex: 0 0 clamp(300px, 42%, 460px);

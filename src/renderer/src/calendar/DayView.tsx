@@ -22,6 +22,16 @@ interface Props {
   tracked?: CalendarEvent[]
   /** Working copy being edited in the side panel, shown as a dashed block. */
   draft: CalendarEvent | null
+  /**
+   * Live preview of the time entry being added/edited in the manual-entry
+   * modal, shown as a dashed block in the actual lane (mirrors `draft`).
+   */
+  actualDraft?: CalendarEvent | null
+  /**
+   * Tracked block id to hide (the entry currently being edited), so its
+   * dashed preview replaces the solid block instead of doubling it.
+   */
+  hideTrackedId?: string | null
   hourHeight: number
   onHourHeightChange: (height: number) => void
   onUpdate: (event: CalendarEvent) => void
@@ -122,6 +132,8 @@ export default function DayView({
   events,
   tracked,
   draft,
+  actualDraft,
+  hideTrackedId,
   hourHeight,
   onHourHeightChange,
   onUpdate,
@@ -153,6 +165,8 @@ export default function DayView({
   }
 
   const draftOnDay = draft && isSameDay(new Date(draft.start), date) ? draft : null
+  const actualDraftOnDay =
+    actualDraft && isSameDay(new Date(actualDraft.start), date) ? actualDraft : null
   const dayEvents = events
     .filter((e) => isSameDay(new Date(e.start), date))
     .filter((e) => !draft || e.id !== draft.id)
@@ -333,6 +347,7 @@ export default function DayView({
   const laidTracked = layoutEvents(
     (tracked ?? [])
       .filter((e) => isSameDay(new Date(e.start), date))
+      .filter((e) => !hideTrackedId || e.id !== hideTrackedId)
       .map((event) => ({
         event,
         startMin: minutesSinceMidnight(new Date(event.start)),
@@ -343,10 +358,11 @@ export default function DayView({
 
   function renderBlock(
     { event, startMin, endMin, col, cols }: Laid,
-    kind: 'event' | 'draft' | 'tracked'
+    kind: 'event' | 'draft' | 'tracked' | 'actualDraft'
   ): JSX.Element {
-    // null for read-only tracked blocks, which can't be dragged or resized.
-    const dragKind = kind === 'tracked' ? null : kind
+    // null for read-only blocks (tracked entries and the actual-lane preview),
+    // which can't be dragged or resized.
+    const dragKind = kind === 'tracked' || kind === 'actualDraft' ? null : kind
     const readOnly = dragKind === null
     const live = dragKind && drag && drag.kind === dragKind && drag.id === event.id
     // The top edge sits exactly at the start time; the height never drops
@@ -362,8 +378,9 @@ export default function DayView({
     const left = `calc(4px + ${inset}px + (100% - 16px) * ${laneStart + (laneSpan * col) / cols})`
     const width = `calc((100% - 16px) * ${laneSpan / cols} - ${2 + inset}px)`
     const classes = ['event']
-    if (kind === 'draft') classes.push('draft')
-    if (readOnly) classes.push('tracked')
+    if (kind === 'draft' || kind === 'actualDraft') classes.push('draft')
+    if (kind === 'actualDraft') classes.push('actual')
+    if (kind === 'tracked') classes.push('tracked')
     if (live) classes.push('dragging')
     return (
       <div
@@ -388,7 +405,8 @@ export default function DayView({
                 🔁{' '}
               </span>
             )}
-            {event.title || (kind === 'draft' ? 'New event' : '')}
+            {event.title ||
+              (kind === 'draft' ? 'New event' : kind === 'actualDraft' ? 'New actual' : '')}
           </span>
           <span className="event-time">
             {fmtMin(startMin)}–{fmtMin(endMin)}
@@ -446,6 +464,19 @@ export default function DayView({
               cols: 1
             },
             'draft'
+          )}
+
+        {actualLane &&
+          actualDraftOnDay &&
+          renderBlock(
+            {
+              event: actualDraftOnDay,
+              startMin: minutesSinceMidnight(new Date(actualDraftOnDay.start)),
+              endMin: minutesSinceMidnight(new Date(actualDraftOnDay.end)),
+              col: 0,
+              cols: 1
+            },
+            'actualDraft'
           )}
 
         {showNow && (
