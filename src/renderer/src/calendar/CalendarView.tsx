@@ -64,6 +64,13 @@ export default function CalendarView(): JSX.Element {
   const [addingActual, setAddingActual] = useState<{ start: Date; end: Date } | null>(null)
   // Tracked entry being edited through the modal, null while closed.
   const [editingActual, setEditingActual] = useState<TimeEntry | null>(null)
+  // Live times/task reported by the open time-entry modal, drawn as a dashed
+  // preview block in the actual lane (mirrors the planned-event draft).
+  const [actualPreview, setActualPreview] = useState<{
+    start: Date
+    end: Date
+    task: string
+  } | null>(null)
 
   useEffect(() => {
     window.api.getEvents().then(setEvents)
@@ -100,6 +107,21 @@ export default function CalendarView(): JSX.Element {
           }))
         : [],
     [showActuals, timeEntries]
+  )
+
+  // The dashed actual-lane preview, shaped like an event so DayView can lay it
+  // out with the same renderer as tracked blocks.
+  const actualDraft = useMemo<CalendarEvent | null>(
+    () =>
+      actualPreview
+        ? {
+            id: 'actual-draft',
+            title: actualPreview.task,
+            start: actualPreview.start.toISOString(),
+            end: actualPreview.end.toISOString()
+          }
+        : null,
+    [actualPreview]
   )
 
   async function persist(next: CalendarEvent[]): Promise<void> {
@@ -284,6 +306,9 @@ export default function CalendarView(): JSX.Element {
               // Undefined when off so the day view collapses back to one lane.
               tracked={showActuals ? trackedEvents : undefined}
               draft={draft?.event ?? null}
+              actualDraft={actualDraft}
+              // Hide the block being edited so the dashed preview stands in for it.
+              hideTrackedId={editingActual ? `tracked-${editingActual.id}` : null}
               hourHeight={hourHeight}
               onHourHeightChange={setHourHeight}
               onUpdate={upsert}
@@ -316,6 +341,7 @@ export default function CalendarView(): JSX.Element {
           initialEnd={addingActual.end}
           onSave={addActual}
           onCancel={() => setAddingActual(null)}
+          onPreviewChange={setActualPreview}
         />
       )}
 
@@ -331,6 +357,7 @@ export default function CalendarView(): JSX.Element {
           onSave={saveActualEdit}
           onDelete={() => void removeActual(editingActual.id)}
           onCancel={() => setEditingActual(null)}
+          onPreviewChange={setActualPreview}
         />
       )}
 

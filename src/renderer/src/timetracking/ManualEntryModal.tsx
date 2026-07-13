@@ -38,6 +38,12 @@ interface Props {
   /** When provided, a Delete button is shown. */
   onDelete?: () => void
   onCancel: () => void
+  /**
+   * Reports the current start/end/task so the calendar can render a dashed
+   * preview block while the modal is open. Called with null when the times
+   * are incomplete or invalid, and once with null on unmount.
+   */
+  onPreviewChange?: (preview: { start: Date; end: Date; task: string } | null) => void
 }
 
 /** Modal for recording or editing a time entry by hand, independent of the timer. */
@@ -51,7 +57,8 @@ export default function ManualEntryModal({
   initialEnd,
   onSave,
   onDelete,
-  onCancel
+  onCancel,
+  onPreviewChange
 }: Props): JSX.Element {
   const [task, setTask] = useState(initialTask ?? '')
   const [subtask, setSubtask] = useState(initialSubtask ?? '')
@@ -84,6 +91,18 @@ export default function ManualEntryModal({
   const start = date && startTime ? fromDateTimeInputs(date, startTime) : null
   const end = date && endTime ? fromDateTimeInputs(date, endTime) : null
   const valid = task.trim().length > 0 && start !== null && end !== null && end > start
+
+  // Mirror the current times onto the calendar as a dashed preview block,
+  // clearing it while they're invalid so no stray frame lingers.
+  // Deps are the raw inputs, since `start`/`end` are derived fresh each render.
+  useEffect(() => {
+    onPreviewChange?.(start && end && end > start ? { start, end, task: task.trim() } : null)
+  }, [date, startTime, endTime, task])
+
+  // Clear the preview when the modal closes.
+  useEffect(() => {
+    return () => onPreviewChange?.(null)
+  }, [])
 
   // Changing the start keeps the current duration and shifts the end with it.
   function changeStart(value: string): void {
