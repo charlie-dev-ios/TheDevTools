@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { TimeEntry, Todo } from '../types'
+import type { TimeEntry, Todo, Project, Hashtag } from '../types'
 import { formatTime } from '../calendar/date-utils'
 import AutocompleteInput from '../components/AutocompleteInput'
 import ManualEntryModal from './ManualEntryModal'
@@ -38,6 +38,8 @@ function formatEntryDate(iso: string): string {
 export default function TimeTrackingView({ active = true }: { active?: boolean }): JSX.Element {
   const [entries, setEntries] = useState<TimeEntry[]>([])
   const [todos, setTodos] = useState<Todo[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
+  const [hashtags, setHashtags] = useState<Hashtag[]>([])
   const [task, setTask] = useState('')
   const [subtask, setSubtask] = useState('')
   const [project, setProject] = useState('')
@@ -59,6 +61,8 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
     if (!active) return
     window.api.getTimeEntries().then(setEntries)
     window.api.getTodos().then(setTodos)
+    window.api.getProjects().then(setProjects)
+    window.api.getHashtags().then(setHashtags)
   }, [active])
 
   // Tick every second while running so the display stays live.
@@ -79,8 +83,14 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
     () => subtaskSuggestions(todos, task, subtask),
     [todos, task, subtask]
   )
-  const projectSugs = useMemo(() => projectSuggestions(entries, project), [entries, project])
-  const hashtagSugs = useMemo(() => hashtagSuggestions(entries, hashtag), [entries, hashtag])
+  const projectSugs = useMemo(
+    () => projectSuggestions(entries, projects, project),
+    [entries, projects, project]
+  )
+  const hashtagSugs = useMemo(
+    () => hashtagSuggestions(entries, hashtags, hashtag),
+    [entries, hashtags, hashtag]
+  )
 
   // Entries are also written from the Calendar tab's Actual lane, so apply
   // changes to a fresh copy instead of trusting the local one.
@@ -223,7 +233,10 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
             suggestions={projectSugs}
             disabled={!idle}
             placeholder="Project (optional)"
-            onFocusRefresh={() => window.api.getTimeEntries().then(setEntries)}
+            onFocusRefresh={() => {
+              window.api.getTimeEntries().then(setEntries)
+              window.api.getProjects().then(setProjects)
+            }}
           />
           <AutocompleteInput
             inputClassName="task-input meta-input"
@@ -232,7 +245,10 @@ export default function TimeTrackingView({ active = true }: { active?: boolean }
             suggestions={hashtagSugs}
             disabled={!idle}
             placeholder="#hashtag (optional)"
-            onFocusRefresh={() => window.api.getTimeEntries().then(setEntries)}
+            onFocusRefresh={() => {
+              window.api.getTimeEntries().then(setEntries)
+              window.api.getHashtags().then(setHashtags)
+            }}
           />
         </div>
 

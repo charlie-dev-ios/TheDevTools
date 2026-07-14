@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { TimeEntry, Todo } from '../types'
+import type { TimeEntry, Todo, Project, Hashtag } from '../types'
 import TimeStepper from '../calendar/TimeStepper'
 import AutocompleteInput from '../components/AutocompleteInput'
 import {
@@ -66,12 +66,17 @@ export default function ManualEntryModal({
   const [hashtag, setHashtag] = useState(initialHashtag ?? '')
   const [todos, setTodos] = useState<Todo[]>([])
   const [entries, setEntries] = useState<TimeEntry[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
+  const [hashtags, setHashtags] = useState<Hashtag[]>([])
 
   // Load the sources backing the field autocompletes (todos/subtasks for
-  // task/subtask, past entries for project/hashtag).
+  // task/subtask, the Projects/Hashtags catalogs plus past entries for
+  // project/hashtag).
   useEffect(() => {
     window.api.getTodos().then(setTodos)
     window.api.getTimeEntries().then(setEntries)
+    window.api.getProjects().then(setProjects)
+    window.api.getHashtags().then(setHashtags)
   }, [])
 
   const taskSugs = useMemo(() => taskSuggestions(todos, task), [todos, task])
@@ -79,8 +84,14 @@ export default function ManualEntryModal({
     () => subtaskSuggestions(todos, task, subtask),
     [todos, task, subtask]
   )
-  const projectSugs = useMemo(() => projectSuggestions(entries, project), [entries, project])
-  const hashtagSugs = useMemo(() => hashtagSuggestions(entries, hashtag), [entries, hashtag])
+  const projectSugs = useMemo(
+    () => projectSuggestions(entries, projects, project),
+    [entries, projects, project]
+  )
+  const hashtagSugs = useMemo(
+    () => hashtagSuggestions(entries, hashtags, hashtag),
+    [entries, hashtags, hashtag]
+  )
   const [date, setDate] = useState(() => toDateInput(initialStart ?? new Date()))
   // Default to the past hour so the fields land near what was just worked on.
   const [startTime, setStartTime] = useState(() =>
