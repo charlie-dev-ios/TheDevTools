@@ -80,4 +80,6 @@ export interface CalendarEvent {
   repeatDays?: number[]
   /** Shared id linking every occurrence generated from the same series. */
   seriesId?: string
+  /** Whether to fire desktop reminders before this event. Absent = enabled. */
+  notify?: boolean
 }

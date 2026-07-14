@@ -36,6 +36,7 @@ import {
   type Project,
   type Hashtag
 } from './store.js'
+import { startEventNotifier } from './notifications.js'
 
 const POLL_INTERVAL_MS = 800
 const LAUNCHER_WIDTH = 640
@@ -301,6 +302,7 @@ app.whenReady().then(() => {
   createTray()
   registerIpc()
   startClipboardWatcher()
+  startEventNotifier()
 
   const shortcut = 'CommandOrControl+Shift+V'
   if (!globalShortcut.register(shortcut, () => toggleLauncher())) {
