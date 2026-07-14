@@ -1,4 +1,4 @@
-import type { Todo, TimeEntry, Project, Hashtag } from '../types'
+import type { Todo, Project, Hashtag } from '../types'
 import type { AutocompleteSuggestion } from '../components/AutocompleteInput'
 import { normalizeHashtag } from './entry-utils'
 
@@ -61,32 +61,33 @@ export function subtaskSuggestions(
 
 /**
  * Distinct project names matching the typed text. The dedicated Projects
- * catalog is offered first (so a project shows up before it's ever tracked),
- * followed by names seen on past entries.
+ * catalog is offered first (so a project shows up before it's ever used),
+ * followed by names seen on past uses (time entries or events).
  */
 export function projectSuggestions(
-  entries: TimeEntry[],
+  past: Array<string | undefined>,
   projects: Project[],
   query: string
 ): AutocompleteSuggestion[] {
-  return distinctValues(
-    [...projects.map((p) => p.name), ...entries.map((e) => e.project)],
-    query
-  ).map((p) => ({ key: p, value: p, label: p }))
+  return distinctValues([...projects.map((p) => p.name), ...past], query).map((p) => ({
+    key: p,
+    value: p,
+    label: p
+  }))
 }
 
 /**
  * Distinct hashtags matching the typed text (leading '#' optional). The
  * dedicated Hashtags catalog is offered first (so a tag shows up before it's
- * ever tracked), followed by tags seen on past entries.
+ * ever used), followed by tags seen on past uses (time entries or events).
  */
 export function hashtagSuggestions(
-  entries: TimeEntry[],
+  past: Array<string | undefined>,
   hashtags: Hashtag[],
   query: string
 ): AutocompleteSuggestion[] {
   return distinctValues(
-    [...hashtags.map((h) => h.name), ...entries.map((e) => e.hashtag)],
+    [...hashtags.map((h) => h.name), ...past],
     normalizeHashtag(query) ?? ''
   ).map((h) => ({ key: h, value: h, label: `#${h}` }))
 }

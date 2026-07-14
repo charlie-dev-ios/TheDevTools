@@ -85,11 +85,11 @@ export default function ManualEntryModal({
     [todos, task, subtask]
   )
   const projectSugs = useMemo(
-    () => projectSuggestions(entries, projects, project),
+    () => projectSuggestions(entries.map((e) => e.project), projects, project),
     [entries, projects, project]
   )
   const hashtagSugs = useMemo(
-    () => hashtagSuggestions(entries, hashtags, hashtag),
+    () => hashtagSuggestions(entries.map((e) => e.hashtag), hashtags, hashtag),
     [entries, hashtags, hashtag]
   )
   const [date, setDate] = useState(() => toDateInput(initialStart ?? new Date()))

@@ -1314,6 +1314,20 @@ body {
   text-overflow: ellipsis;
 }
 
+/* Compact project/hashtag chips inside a day-view block. */
+.event-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 3px;
+}
+
+.event-tags .tag-chip {
+  font-size: 9px;
+  padding: 0 6px;
+  line-height: 1.5;
+}
+
 .event-resize {
   position: absolute;
   left: 0;

@@ -1,7 +1,10 @@
-import { useState } from 'react'
-import type { CalendarEvent, CalendarRepeat } from '../types'
+import { useEffect, useMemo, useState } from 'react'
+import type { CalendarEvent, CalendarRepeat, Hashtag, Project } from '../types'
 import TimeStepper from './TimeStepper'
 import TitleAutocomplete from './TitleAutocomplete'
+import AutocompleteInput from '../components/AutocompleteInput'
+import { normalizeHashtag } from '../timetracking/entry-utils'
+import { hashtagSuggestions, projectSuggestions } from '../timetracking/suggestions'
 import {
   fromDateTimeInputs,
   hmOfMinutes,
@@ -37,11 +40,34 @@ export default function EventModal({
 
   const [title, setTitle] = useState(event.title)
   const [description, setDescription] = useState(event.description ?? '')
+  const [project, setProject] = useState(event.project ?? '')
+  const [hashtag, setHashtag] = useState(event.hashtag ?? '')
   const [date, setDate] = useState(toDateInput(start))
   const [startTime, setStartTime] = useState(toTimeInput(start))
   const [endTime, setEndTime] = useState(toTimeInput(end))
   const [repeat, setRepeat] = useState<CalendarRepeat>(event.repeat ?? 'none')
   const [repeatDays, setRepeatDays] = useState<number[]>(event.repeatDays ?? [])
+
+  // Sources backing the project/hashtag autocompletes: the shared catalogs plus
+  // values already used on other events.
+  const [events, setEvents] = useState<CalendarEvent[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
+  const [hashtags, setHashtags] = useState<Hashtag[]>([])
+
+  useEffect(() => {
+    window.api.getEvents().then(setEvents)
+    window.api.getProjects().then(setProjects)
+    window.api.getHashtags().then(setHashtags)
+  }, [])
+
+  const projectSugs = useMemo(
+    () => projectSuggestions(events.map((e) => e.project), projects, project),
+    [events, projects, project]
+  )
+  const hashtagSugs = useMemo(
+    () => hashtagSuggestions(events.map((e) => e.hashtag), hashtags, hashtag),
+    [events, hashtags, hashtag]
+  )
 
   // Changing the start keeps the current duration and shifts the end with it.
   function changeStart(value: string): void {
@@ -72,6 +98,8 @@ export default function EventModal({
       ...event,
       title: title.trim() || 'Untitled',
       description: description.trim(),
+      project: project.trim() || undefined,
+      hashtag: normalizeHashtag(hashtag),
       start: s.toISOString(),
       end: e.toISOString(),
       repeat,
@@ -104,6 +132,29 @@ export default function EventModal({
             onChange={(e) => setDescription(e.target.value)}
           />
         </label>
+
+        <div className="field-row">
+          <label className="field">
+            <span>Project</span>
+            <AutocompleteInput
+              value={project}
+              onChange={setProject}
+              suggestions={projectSugs}
+              placeholder="Which project? (optional)"
+              onFocusRefresh={() => window.api.getProjects().then(setProjects)}
+            />
+          </label>
+          <label className="field">
+            <span>Hashtag</span>
+            <AutocompleteInput
+              value={hashtag}
+              onChange={setHashtag}
+              suggestions={hashtagSugs}
+              placeholder="#tag (optional)"
+              onFocusRefresh={() => window.api.getHashtags().then(setHashtags)}
+            />
+          </label>
+        </div>
 
         <label className="field">
           <span>Date</span>
