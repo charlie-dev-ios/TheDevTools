@@ -12,6 +12,10 @@ export interface CalendarEvent {
   description?: string
   start: string
   end: string
+  repeat?: 'none' | 'daily' | 'weekly' | 'monthly' | 'weekdays'
+  repeatDays?: number[]
+  seriesId?: string
+  notify?: boolean
 }
 
 export interface Subtask {

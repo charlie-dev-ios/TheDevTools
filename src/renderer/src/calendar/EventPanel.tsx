@@ -188,6 +188,15 @@ export default function EventPanel({
         </div>
       )}
 
+      <label className="field-check">
+        <input
+          type="checkbox"
+          checked={event.notify !== false}
+          onChange={(e) => onChange({ ...event, notify: e.target.checked })}
+        />
+        <span>Remind me 10 &amp; 5 minutes before it starts and ends</span>
+      </label>
+
       <div className="panel-hint">
         Drag the dashed block on the timeline to move it, or drag its bottom edge to resize.
       </div>

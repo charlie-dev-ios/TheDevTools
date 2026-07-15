@@ -28,6 +28,8 @@ The app has two surfaces:
   date/time, delete. Click a day number to jump into its day view.
 - 🔁 **Repeating events** — daily/weekly/monthly series; delete a single
   occurrence or the whole series.
+- 🔔 **Reminders** — desktop notifications 10 and 5 minutes before an event's
+  start and its end. Toggle them off per event in the editor.
 - 🖱️ **Drag to reschedule** — in the day view, drag an event to move it
   (15-minute snapping) or drag its bottom edge to change its duration.
 - 🔎 **Zoomable timeline** — adjust the day-view hour height; the zoom is

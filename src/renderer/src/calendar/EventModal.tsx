@@ -42,6 +42,7 @@ export default function EventModal({
   const [endTime, setEndTime] = useState(toTimeInput(end))
   const [repeat, setRepeat] = useState<CalendarRepeat>(event.repeat ?? 'none')
   const [repeatDays, setRepeatDays] = useState<number[]>(event.repeatDays ?? [])
+  const [notify, setNotify] = useState(event.notify !== false)
 
   // Changing the start keeps the current duration and shifts the end with it.
   function changeStart(value: string): void {
@@ -75,7 +76,8 @@ export default function EventModal({
       start: s.toISOString(),
       end: e.toISOString(),
       repeat,
-      repeatDays: repeat === 'weekdays' ? repeatDays : undefined
+      repeatDays: repeat === 'weekdays' ? repeatDays : undefined,
+      notify
     }
     onSave(base)
   }
@@ -156,6 +158,15 @@ export default function EventModal({
             Changing the repeat rebuilds the series from this occurrence.
           </div>
         )}
+
+        <label className="field-check">
+          <input
+            type="checkbox"
+            checked={notify}
+            onChange={(e) => setNotify(e.target.checked)}
+          />
+          <span>Remind me 10 &amp; 5 minutes before it starts and ends</span>
+        </label>
 
         <div className="modal-actions">
           <button

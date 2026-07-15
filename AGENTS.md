@@ -57,6 +57,7 @@ src/
     index.ts           windows, tray, global shortcut, clipboard watcher,
                        paste (osascript), all IPC handlers, app lifecycle
     store.ts           single-JSON-file persistence + repeating-todo roll-forward
+    notifications.ts   polls stored events, fires desktop reminders before them
   preload/
     index.ts           contextBridge: exposes the typed `window.api` to renderer
   renderer/            React UI — ONE bundle shared by both windows
