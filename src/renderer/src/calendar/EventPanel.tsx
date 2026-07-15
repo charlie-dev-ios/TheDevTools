@@ -1,7 +1,10 @@
-import { useEffect } from 'react'
-import type { CalendarEvent, CalendarRepeat } from '../types'
+import { useEffect, useMemo, useState } from 'react'
+import type { CalendarEvent, CalendarRepeat, Hashtag, Project } from '../types'
 import TimeStepper from './TimeStepper'
 import TitleAutocomplete from './TitleAutocomplete'
+import AutocompleteInput from '../components/AutocompleteInput'
+import { normalizeHashtag } from '../timetracking/entry-utils'
+import { hashtagSuggestions, projectSuggestions } from '../timetracking/suggestions'
 import {
   fromDateTimeInputs,
   hmOfMinutes,
@@ -45,6 +48,27 @@ export default function EventPanel({
   const endTime = toTimeInput(end)
   const repeat = event.repeat ?? 'none'
   const repeatDays = event.repeatDays ?? []
+
+  // Sources backing the project/hashtag autocompletes: the shared catalogs plus
+  // values already used on other events.
+  const [events, setEvents] = useState<CalendarEvent[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
+  const [hashtags, setHashtags] = useState<Hashtag[]>([])
+
+  useEffect(() => {
+    window.api.getEvents().then(setEvents)
+    window.api.getProjects().then(setProjects)
+    window.api.getHashtags().then(setHashtags)
+  }, [])
+
+  const projectSugs = useMemo(
+    () => projectSuggestions(events.map((e) => e.project), projects, event.project ?? ''),
+    [events, projects, event.project]
+  )
+  const hashtagSugs = useMemo(
+    () => hashtagSuggestions(events.map((e) => e.hashtag), hashtags, event.hashtag ?? ''),
+    [events, hashtags, event.hashtag]
+  )
 
   useEffect(() => {
     function onKey(e: KeyboardEvent): void {
@@ -100,6 +124,8 @@ export default function EventPanel({
       ...event,
       title: event.title.trim() || 'Untitled',
       description: event.description?.trim(),
+      project: event.project?.trim() || undefined,
+      hashtag: normalizeHashtag(event.hashtag ?? ''),
       end: e.toISOString(),
       repeat,
       repeatDays: repeat === 'weekdays' ? repeatDays : undefined
@@ -135,6 +161,29 @@ export default function EventPanel({
           onChange={(e) => onChange({ ...event, description: e.target.value })}
         />
       </label>
+
+      <div className="field-row">
+        <label className="field">
+          <span>Project</span>
+          <AutocompleteInput
+            value={event.project ?? ''}
+            onChange={(project) => onChange({ ...event, project })}
+            suggestions={projectSugs}
+            placeholder="Which project? (optional)"
+            onFocusRefresh={() => window.api.getProjects().then(setProjects)}
+          />
+        </label>
+        <label className="field">
+          <span>Hashtag</span>
+          <AutocompleteInput
+            value={event.hashtag ?? ''}
+            onChange={(hashtag) => onChange({ ...event, hashtag })}
+            suggestions={hashtagSugs}
+            placeholder="#tag (optional)"
+            onFocusRefresh={() => window.api.getHashtags().then(setHashtags)}
+          />
+        </label>
+      </div>
 
       <label className="field">
         <span>Date</span>

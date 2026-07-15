@@ -10,6 +10,8 @@ export interface CalendarEvent {
   id: string
   title: string
   description?: string
+  project?: string
+  hashtag?: string
   start: string
   end: string
   repeat?: 'none' | 'daily' | 'weekly' | 'monthly' | 'weekdays'

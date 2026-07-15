@@ -26,6 +26,9 @@ The app has two surfaces:
   an hour timeline with a live current-time indicator.
 - 🗓️ **Events** — create (click a day or an hour), edit title/description/
   date/time, delete. Click a day number to jump into its day view.
+- 🏷️ **Project & hashtag tags** — tag an event with a project and a hashtag
+  (autocompleted from the shared catalogs, same as time entries) so plans and
+  tracked time share one vocabulary; the tags show as chips on the day view.
 - 🔁 **Repeating events** — daily/weekly/monthly series; delete a single
   occurrence or the whole series.
 - 🔔 **Reminders** — desktop notifications 10 and 5 minutes before an event's

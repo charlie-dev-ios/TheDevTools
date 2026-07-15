@@ -413,6 +413,12 @@ export default function DayView({
           </span>
         </div>
         {event.description && <div className="event-desc">{event.description}</div>}
+        {(event.project || event.hashtag) && (
+          <div className="event-tags">
+            {event.project && <span className="tag-chip project-chip">{event.project}</span>}
+            {event.hashtag && <span className="tag-chip hashtag-chip">#{event.hashtag}</span>}
+          </div>
+        )}
         {dragKind && (
           <div
             className="event-resize"

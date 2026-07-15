@@ -16,6 +16,10 @@ export interface CalendarEvent {
   title: string
   /** Optional free-text notes about the event. */
   description?: string
+  /** Optional project this event belongs to. */
+  project?: string
+  /** Optional hashtag (stored without the leading '#'). */
+  hashtag?: string
   /** ISO datetime string. */
   start: string
   /** ISO datetime string. */
